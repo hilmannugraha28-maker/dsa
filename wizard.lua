@@ -28,6 +28,7 @@ local State = {
     AutoCollect = false,
     AutoRebirth = false,
     AutoSell = false,
+    AutoCast = false,      -- Auto Cast skill E & R
     FarmLoop = nil,
     KillLoop = nil,
     AttackLoop = nil,
@@ -37,6 +38,9 @@ local State = {
     FarmDelay = 0.5,
     FarmRange = 150,
     FarmOrigin = nil,
+    -- Auto Cast skill cooldowns
+    SkillE_CD = 1.0,       -- cooldown skill E (Night Wraith)
+    SkillR_CD = 3.0,       -- cooldown skill R (Radiant Sword)
     SellRarities = {
         Common    = true,
         Uncommon  = true,
@@ -353,6 +357,10 @@ local _orbitRunning = false
 local _orbitAngle   = 0
 local _orbitConn    = nil
 
+-- Timer skill auto cast
+local _lastSkillE = 0
+local _lastSkillR = 0
+
 -- Hentikan orbit jika sedang berjalan
 local function stopOrbit()
     _orbitRunning = false
@@ -417,7 +425,7 @@ local function orbitAndAttack(enemy)
             RootPart.CFrame = CFrame.lookAt(orbitPos, center)
         end)
 
-        -- Serang sesuai interval
+        -- Serang sesuai interval (basic attack)
         local now = tick()
         if now - lastAttack >= State.AttackInterval then
             lastAttack = now
@@ -438,6 +446,31 @@ local function orbitAndAttack(enemy)
                     h.Health = 1
                 end
             end)
+        end
+
+        -- Auto Cast skill E & R
+        if State.AutoCast then
+            local vim = game:GetService("VirtualInputManager")
+            -- Skill E (Night Wraith)
+            if now - _lastSkillE >= State.SkillE_CD then
+                _lastSkillE = now
+                pcall(function()
+                    vim:SendKeyEvent(true,  Enum.KeyCode.E, false, game)
+                    task.delay(0.05, function()
+                        vim:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                    end)
+                end)
+            end
+            -- Skill R (Radiant Sword)
+            if now - _lastSkillR >= State.SkillR_CD then
+                _lastSkillR = now
+                pcall(function()
+                    vim:SendKeyEvent(true,  Enum.KeyCode.R, false, game)
+                    task.delay(0.05, function()
+                        vim:SendKeyEvent(false, Enum.KeyCode.R, false, game)
+                    end)
+                end)
+            end
         end
     end)
 
@@ -1353,6 +1386,27 @@ makeSlider("Orbit Speed", "⚡", 30, 360, 90,
 makeSlider("Attack Rate", "🗡️", 0.05, 0.5, 0.12,
     function(v) return v .. "s" end,
     function(v) State.AttackInterval = v end
+)
+
+makeToggle("Auto Cast (E + R)", "✨", "Cast Night Wraith (E) & Radiant Sword (R) otomatis", function(on)
+    State.AutoCast = on
+    if on then
+        _lastSkillE = 0  -- reset timer agar langsung cast
+        _lastSkillR = 0
+        notify("✨ Auto Cast", "✅ Aktif! E:" .. State.SkillE_CD .. "s | R:" .. State.SkillR_CD .. "s")
+    else
+        notify("✨ Auto Cast", "❌ Nonaktif")
+    end
+end)
+
+makeSlider("Skill E Cooldown", "🌑", 0.5, 10.0, 1.0,
+    function(v) return v .. "s" end,
+    function(v) State.SkillE_CD = v end
+)
+
+makeSlider("Skill R Cooldown", "⚔️", 0.5, 15.0, 3.0,
+    function(v) return v .. "s" end,
+    function(v) State.SkillR_CD = v end
 )
 
 makeSlider("Farm Range", "📍", 0, 500, 150,
