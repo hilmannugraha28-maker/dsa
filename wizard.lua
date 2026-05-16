@@ -17,7 +17,7 @@ local Hum = Char:WaitForChild("Humanoid")
 local Root = Char:WaitForChild("HumanoidRootPart")
 
 local S = {
-    AutoFarm=false, InstantKill=false, AutoSkill=false,
+    AutoFarm=false, AutoSkill=false,
     AutoRespawn=false, FarmRange=150, FarmDelay=0.3,
     OrbitRadius=4, OrbitSpeed=120, AttackRate=0.1,
     FarmOrigin=nil, LastPos=nil,
@@ -242,7 +242,7 @@ local function orbitKill(enemy)
     stopOrbit(); orbitActive=true
     local angle,lastAtk=0,0
     orbitConn = RunService.Heartbeat:Connect(function(dt)
-        if not orbitActive or not S.InstantKill and not S.AutoFarm then orbitActive=false; return end
+        if not orbitActive or not S.AutoFarm then orbitActive=false; return end
         if not enemy or not enemy.Parent then orbitActive=false; return end
         local hm=enemy:FindFirstChild("Humanoid")
         if not hm or hm.Health<=0 then orbitActive=false; return end
@@ -256,7 +256,7 @@ local function orbitKill(enemy)
             lastAtk=now
             pcall(function() fireAttack(enemy) end)
             if S.AutoSkill then pressKey(Enum.KeyCode.R); pressKey(Enum.KeyCode.E) end
-            pcall(function() if hm.Health>1 then hm.Health=1 end end)
+            -- damage dari server (tanpa client-side health manipulation)
         end
     end)
     while orbitActive do task.wait(0.1) end
@@ -266,22 +266,6 @@ end
 -- ========================
 -- FARM LOOPS
 -- ========================
-local function startInstantKill()
-    task.spawn(function()
-        while S.InstantKill do
-            local mobs=scanMobs()
-            if #mobs==0 then stopOrbit(); task.wait(1) else
-                for _,m in ipairs(mobs) do
-                    if not S.InstantKill then stopOrbit(); break end
-                    if m.model and m.model.Parent then
-                        local h=m.model:FindFirstChild("Humanoid")
-                        if h and h.Health>0 then pcall(function() orbitKill(m.model) end) end
-                    end; task.wait(0.1)
-                end
-            end; task.wait(0.2)
-        end; stopOrbit()
-    end)
-end
 
 local function startAutoFarm()
     task.spawn(function()
@@ -434,13 +418,7 @@ end)
 
 mkSec("  COMBAT")
 
-mkToggle("Instant Kill","Orbit + rapid attack semua mob",function(on)
-    S.InstantKill=on
-    if on then S.FarmOrigin=Root.Position; startInstantKill(); notify("Instant Kill","ON")
-    else S.FarmOrigin=nil; stopOrbit(); notify("Instant Kill","OFF") end
-end)
-
-mkToggle("Auto Farm","Teleport ke mob dalam range",function(on)
+mkToggle("Auto Farm","Orbit + serang mob terdekat dalam range",function(on)
     S.AutoFarm=on
     if on then S.FarmOrigin=Root.Position; startAutoFarm(); notify("Auto Farm","ON")
     else S.FarmOrigin=nil; stopOrbit(); notify("Auto Farm","OFF") end
@@ -450,17 +428,13 @@ mkToggle("Auto Skill R+E","Otomatis tekan R dan E saat serang",function(on)
     S.AutoSkill=on; notify("Auto Skill",on and "ON" or "OFF")
 end)
 
-mkToggle("Auto Respawn","Balik ke posisi terakhir saat mati",function(on)
+mkToggle("Auto Respawn","Balik + equip senjata saat mati",function(on)
     S.AutoRespawn=on; notify("Auto Respawn",on and "ON" or "OFF")
-end)
-
-mkToggle("Auto Click","Klik tengah layar saat serang (toggle)",function(on)
-    S.AutoClick=on; notify("Auto Click",on and "ON" or "OFF")
 end)
 
 mkSec("  SETTINGS")
 mkSlider("Farm Range",0,500,150,function(v) return v==0 and "ALL" or v.."st" end,function(v)
-    S.FarmRange=v; if S.InstantKill or S.AutoFarm then S.FarmOrigin=Root.Position end
+    S.FarmRange=v; if S.AutoFarm then S.FarmOrigin=Root.Position end
 end)
 mkSlider("Orbit Radius",2,12,4,function(v) return v.."st" end,function(v) S.OrbitRadius=v end)
 mkSlider("Orbit Speed",30,360,120,function(v) return v.."/s" end,function(v) S.OrbitSpeed=v end)
