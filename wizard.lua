@@ -43,19 +43,21 @@ LP.CharacterAdded:Connect(function(c)
     if S.AutoRespawn then
         local savedPos = S.LastPos
         task.wait(5) -- tunggu game selesai respawn
-        -- 1. Equip senjata DULU (sebelum teleport)
+        -- 1. Equip senjata (tekan tombol 1)
         task.spawn(function()
-            for i=1,15 do
-                local bp = LP:FindFirstChild("Backpack")
-                if bp then
-                    local tool = bp:FindFirstChildOfClass("Tool")
-                    if tool then
-                        tool.Parent = Char
-                        print("[WA] Equipped: " .. tool.Name)
-                        break
-                    end
+            task.wait(0.5)
+            for i=1,5 do
+                pcall(function()
+                    VIM:SendKeyEvent(true, Enum.KeyCode.One, false, game)
+                    task.wait(0.1)
+                    VIM:SendKeyEvent(false, Enum.KeyCode.One, false, game)
+                end)
+                -- cek apakah sudah equipped
+                if Char:FindFirstChildOfClass("Tool") then
+                    print("[WA] Weapon equipped via key 1")
+                    break
                 end
-                task.wait(0.3)
+                task.wait(0.5)
             end
         end)
         -- 2. Teleport balik (retry 5x supaya pasti nyampe)
@@ -203,11 +205,14 @@ local function fireAttack(target)
     -- 0. Auto equip
     local tool = Char:FindFirstChildOfClass("Tool")
     if not tool then
-        local bp = LP:FindFirstChild("Backpack")
-        if bp then
-            local t = bp:FindFirstChildOfClass("Tool")
-            if t then t.Parent = Char; tool = t end
-        end
+        -- Tekan 1 untuk equip
+        pcall(function()
+            VIM:SendKeyEvent(true, Enum.KeyCode.One, false, game)
+            task.wait(0.05)
+            VIM:SendKeyEvent(false, Enum.KeyCode.One, false, game)
+        end)
+        task.wait(0.1)
+        tool = Char:FindFirstChildOfClass("Tool")
     end
 
     local targetRoot = nil
