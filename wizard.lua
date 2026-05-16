@@ -337,104 +337,130 @@ local function fireToolActivated(targetPos)
     fireToolFallback(targetPos)
 end
 
-local function autoAttackEnemy(enemy)
-    if not enemy or not enemy:FindFirstChild("Humanoid") then return end
-    if enemy.Humanoid.Health <= 0 then return end
+-- ========================
+-- ORBIT ATTACK SYSTEM
+-- ========================
+-- Karakter melayang mengelilingi target sambil menyerang.
+-- Saat target mati, loop lanjut ke target berikutnya.
 
-    local root = enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChild("Torso") or enemy.PrimaryPart
-    local targetPos = root and root.Position or nil
+State.OrbitRadius = 4      -- jarak orbit dari target (studs)
+State.OrbitHeight = 3      -- ketinggian melayang di atas target
+State.OrbitSpeed  = 90     -- derajat per detik (kecepatan putar)
+State.AttackInterval = 0.12 -- interval serangan (detik)
 
-    -- Teleport ke dekat musuh (dalam jangkauan serangan)
-    if targetPos then
-        RootPart.CFrame = CFrame.new(targetPos + Vector3.new(0, 2, 3.5))
-        RootPart.CFrame = CFrame.lookAt(RootPart.Position, targetPos)
-        task.wait(0.03)
-    end
+-- Variabel orbit aktif
+local _orbitRunning = false
+local _orbitAngle   = 0
+local _orbitConn    = nil
 
-    -- Fire tool attack tanpa mouse bergerak
-    fireToolActivated(targetPos)
-
-    -- Fire remote attack di ReplicatedStorage (damage/hit/spell remotes)
-    for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
-        if remote:IsA("RemoteEvent") then
-            local n = remote.Name:lower()
-            if n:find("attack") or n:find("swing") or n:find("cast") or n:find("spell")
-                or n:find("shoot") or n:find("hit") or n:find("damage") then
-                pcall(function() remote:FireServer(enemy, targetPos) end)
-            end
-        end
-        if remote:IsA("RemoteFunction") then
-            local n = remote.Name:lower()
-            if n:find("attack") or n:find("swing") or n:find("cast") or n:find("spell") or n:find("hit") then
-                pcall(function() remote:InvokeServer(enemy, targetPos) end)
-            end
-        end
+-- Hentikan orbit jika sedang berjalan
+local function stopOrbit()
+    _orbitRunning = false
+    if _orbitConn then
+        _orbitConn:Disconnect()
+        _orbitConn = nil
     end
 end
 
--- ========================
--- 2-HIT INSTANT KILL (Undetected)
--- ========================
--- Logika: Hit #1 (legit) → tunggu server konfirmasi → set HP = 1 → Hit #2 (legit kill)
--- Server memproses kedua serangan sebagai kill normal → loot drop ✅
-local function killEnemy(enemy)
-    if not enemy or not enemy:FindFirstChild("Humanoid") then return end
-    local hum = enemy.Humanoid
-    if hum.Health <= 0 then return end
+-- Mulai orbit + serang target tertentu
+-- Mengembalikan: true jika target mati, false jika loop dihentikan
+local function orbitAndAttack(enemy)
+    if not enemy or not enemy.Parent then return false end
+    local hum = enemy:FindFirstChild("Humanoid")
+    if not hum or hum.Health <= 0 then return true end
 
-    local root = enemy:FindFirstChild("HumanoidRootPart")
-        or enemy:FindFirstChild("Torso")
-        or enemy.PrimaryPart
-    local targetPos = root and root.Position or nil
+    stopOrbit()
+    _orbitRunning = true
+    _orbitAngle = 0
 
-    -- Teleport ke jangkauan serangan
-    if targetPos then
-        RootPart.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
-        RootPart.CFrame = CFrame.lookAt(RootPart.Position, targetPos)
-        task.wait(0.05)
-    end
+    local lastAttack = 0
 
-    -- ══ HIT #1 — Serangan pertama (legitimate) ══
-    local hitConfirmed = false
-    local prevHp = hum.Health
+    -- Loop orbit via RunService.Heartbeat
+    _orbitConn = RunService.Heartbeat:Connect(function(dt)
+        if not _orbitRunning then return end
 
-    -- Monitor HealthChanged untuk konfirmasi server terima damage
-    local conn = hum.HealthChanged:Connect(function(newHp)
-        if newHp < prevHp then
-            hitConfirmed = true
+        -- Cek target masih valid
+        if not enemy or not enemy.Parent then
+            _orbitRunning = false
+            return
+        end
+        local h = enemy:FindFirstChild("Humanoid")
+        if not h or h.Health <= 0 then
+            _orbitRunning = false
+            return
+        end
+
+        local root = enemy:FindFirstChild("HumanoidRootPart")
+            or enemy:FindFirstChild("Torso")
+            or enemy.PrimaryPart
+        if not root then return end
+
+        local center = root.Position
+
+        -- Hitung posisi orbit
+        _orbitAngle = (_orbitAngle + State.OrbitSpeed * dt) % 360
+        local rad   = math.rad(_orbitAngle)
+        local orbitPos = Vector3.new(
+            center.X + math.cos(rad) * State.OrbitRadius,
+            center.Y + State.OrbitHeight,
+            center.Z + math.sin(rad) * State.OrbitRadius
+        )
+
+        -- Teleport CFrame ke posisi orbit, menghadap target
+        pcall(function()
+            RootPart.CFrame = CFrame.lookAt(orbitPos, center)
+        end)
+
+        -- Serang sesuai interval
+        local now = tick()
+        if now - lastAttack >= State.AttackInterval then
+            lastAttack = now
+            pcall(function() fireToolActivated(center) end)
+            -- Fire combat remotes
+            for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
+                if remote:IsA("RemoteEvent") then
+                    local n = remote.Name:lower()
+                    if n:find("attack") or n:find("swing") or n:find("cast")
+                        or n:find("spell") or n:find("hit") or n:find("damage") then
+                        pcall(function() remote:FireServer(enemy, center) end)
+                    end
+                end
+            end
+            -- Set HP lokal ke 1 agar kill cepat (server tetap proses normal)
+            pcall(function()
+                if h and h.Health > 0 and h.Health < h.MaxHealth then
+                    h.Health = 1
+                end
+            end)
         end
     end)
 
-    pcall(function() fireToolActivated(targetPos) end)
-
-    -- Tunggu server konfirmasi hit (maks 1.5 detik)
-    local waited = 0
-    while not hitConfirmed and waited < 1.5 and hum.Health > 0 do
-        task.wait(0.05)
-        waited = waited + 0.05
+    -- Tunggu sampai target mati atau orbit dihentikan
+    while _orbitRunning do
+        task.wait(0.1)
     end
-    conn:Disconnect()
 
-    if hum.Health <= 0 then return end -- sudah mati dari hit #1
+    stopOrbit()
 
-    -- ══ JEMBATAN — Set HP hampir mati ══
-    -- Setelah hit #1 dikonfirmasi server, set HP lokal ke 1
-    -- Sehingga hit #2 apapun akan menjadi lethal di server
-    pcall(function() hum.Health = 1 end)
-    task.wait(0.04)
-
-    -- ══ HIT #2 — Serangan penutup (mob mati, loot drop) ══
-    pcall(function() fireToolActivated(targetPos) end)
-    task.wait(0.05)
-    pcall(function() fireToolActivated(targetPos) end) -- double fire untuk pastikan
-
-    -- Fallback: jika masih hidup setelah 0.5 detik, lanjut rapid attack
-    task.wait(0.3)
-    local timeout = tick() + 2.5
-    while hum and hum.Health > 0 and tick() < timeout do
-        pcall(function() fireToolActivated(targetPos) end)
-        task.wait(0.08)
+    -- Return true jika target sudah mati (bukan karena dihentikan manual)
+    if enemy and enemy.Parent then
+        local h2 = enemy:FindFirstChild("Humanoid")
+        return not h2 or h2.Health <= 0
     end
+    return true
+end
+
+-- Wrapper kompatibilitas (dipakai GUI toggle lama)
+local function autoAttackEnemy(enemy)
+    if not enemy or not enemy:FindFirstChild("Humanoid") then return end
+    if enemy.Humanoid.Health <= 0 then return end
+    orbitAndAttack(enemy)
+end
+
+local function killEnemy(enemy)
+    if not enemy or not enemy:FindFirstChild("Humanoid") then return end
+    if enemy.Humanoid.Health <= 0 then return end
+    orbitAndAttack(enemy)
 end
 
 local function collectItems()
@@ -456,109 +482,87 @@ end
 -- ========================
 -- LOOP HANDLERS
 -- ========================
-local function startAutoFarm()
-    State.FarmLoop = task.spawn(function()
-        while State.AutoFarm do
-            local mobs = scanAllMobs() -- sudah terfilter range & NPC
-            if #mobs == 0 then
-                task.wait(1)
-            else
-                for _, mob in ipairs(mobs) do
-                    if not State.AutoFarm then break end
-                    local enemy = mob.model
-                    if enemy and enemy.Parent and enemy:FindFirstChild("Humanoid") then
-                        if enemy.Humanoid.Health > 0 then
-                            local root = mob.root
-                            if root then
-                                -- Teleport ke mob
-                                RootPart.CFrame = CFrame.new(root.Position + Vector3.new(0, 3, 3))
-                                RootPart.CFrame = CFrame.lookAt(RootPart.Position, root.Position)
-                                task.wait(State.FarmDelay) -- delay sebelum lanjut
-                            end
-                        end
-                    end
-                end
-            end
-            task.wait(0.3)
-        end
-    end)
-end
+-- ========================
+-- ORBIT-BASED FARM LOOPS
+-- ========================
 
+-- startInstantKill: orbit tiap mob satu per satu, pindah saat mati
 local function startInstantKill()
     State.KillLoop = task.spawn(function()
         while State.InstantKill do
-            -- 1. Scan semua mob yang hidup
             local mobs = scanAllMobs()
 
             if #mobs == 0 then
-                -- Tidak ada mob, tunggu sebelum scan ulang
+                stopOrbit()
                 task.wait(2)
             else
-                print(string.format("[WA Hub] Ditemukan %d mob, mulai hunt...", #mobs))
+                print(string.format("[WA Hub] Ditemukan %d mob, mulai orbit hunt...", #mobs))
 
-                -- 2. Iterasi satu per satu (urutan terdekat)
                 for _, mobData in ipairs(mobs) do
-                    if not State.InstantKill then break end
+                    if not State.InstantKill then stopOrbit(); break end
 
                     local enemy = mobData.model
-                    -- Cek masih hidup dan valid
                     if not enemy or not enemy.Parent then continue end
                     local hum = enemy:FindFirstChild("Humanoid")
                     if not hum or hum.Health <= 0 then continue end
 
-                    local root = enemy:FindFirstChild("HumanoidRootPart")
-                        or enemy:FindFirstChild("Torso")
-                        or enemy.PrimaryPart
-                    if not root then continue end
+                    print("[WA Hub] Orbit → " .. enemy.Name)
+                    -- Orbit & serang sampai mati, lalu lanjut ke mob berikutnya
+                    pcall(function() orbitAndAttack(enemy) end)
 
-                    -- 3. Teleport ke dekat musuh
-                    RootPart.CFrame = CFrame.new(root.Position + Vector3.new(0, 3, 0))
-                    RootPart.CFrame = CFrame.lookAt(RootPart.Position, root.Position)
-
-                    -- 4. Tunggu sebentar agar server register posisi kita
-                    task.wait(State.KillDelay)
-
-                    -- 5. Instant kill
-                    pcall(function() killEnemy(enemy) end)
-
-                    -- 6. Tunggu mob mati (max 1 detik)
-                    local waited = 0
-                    while hum and hum.Health > 0 and waited < 1 do
-                        task.wait(0.1)
-                        waited = waited + 0.1
-                    end
-
-                    -- Jeda kecil sebelum mob berikutnya
-                    task.wait(0.1)
+                    task.wait(0.15) -- jeda kecil sebelum target berikutnya
                 end
 
                 print("[WA Hub] Semua mob selesai, scan ulang...")
-                task.wait(0.5) -- cooldown sebelum scan berikutnya
+                task.wait(0.3)
             end
         end
+        stopOrbit()
     end)
 end
 
+-- startAutoAttack: orbit musuh terdekat terus-menerus
 local function startAutoAttack()
     State.AttackLoop = task.spawn(function()
         while State.AutoAttack do
-            local nearest, dist = getNearestEnemy()
+            local nearest = getNearestEnemy()
             if nearest then
-                -- Teleport ke dekat musuh jika jauh
-                local root = nearest:FindFirstChild("HumanoidRootPart") or nearest:FindFirstChild("Torso") or nearest.PrimaryPart
-                if root and dist > 8 then
-                    RootPart.CFrame = CFrame.new(root.Position + Vector3.new(0, 2, 4))
+                local hum = nearest:FindFirstChild("Humanoid")
+                if hum and hum.Health > 0 then
+                    pcall(function() orbitAndAttack(nearest) end)
                 end
-                -- Arahkan ke musuh dan serang
-                if root then
-                    RootPart.CFrame = CFrame.lookAt(RootPart.Position, root.Position)
-                end
-                pcall(function() autoAttackEnemy(nearest) end)
-                task.wait(0.25) -- Attack speed ~4 hit/detik
             else
+                stopOrbit()
                 task.wait(0.5)
             end
+            task.wait(0.1)
         end
+        stopOrbit()
+    end)
+end
+
+-- startAutoFarm: orbit mob dalam range, teleport ke berikutnya setelah mati
+local function startAutoFarm()
+    State.FarmLoop = task.spawn(function()
+        while State.AutoFarm do
+            local mobs = scanAllMobs()
+            if #mobs == 0 then
+                stopOrbit()
+                task.wait(1)
+            else
+                for _, mob in ipairs(mobs) do
+                    if not State.AutoFarm then stopOrbit(); break end
+                    local enemy = mob.model
+                    if not enemy or not enemy.Parent then continue end
+                    local hum = enemy:FindFirstChild("Humanoid")
+                    if not hum or hum.Health <= 0 then continue end
+                    pcall(function() orbitAndAttack(enemy) end)
+                    task.wait(State.FarmDelay)
+                end
+            end
+            task.wait(0.2)
+        end
+        stopOrbit()
     end)
 end
 
@@ -1327,6 +1331,21 @@ end)
 makeSlider("Kill Delay", "⏱️", 0.3, 2.0, 0.8,
     function(v) return v .. "s" end,
     function(v) State.KillDelay = v end
+)
+
+makeSlider("Orbit Radius", "🌀", 2, 12, 4,
+    function(v) return v .. " st" end,
+    function(v) State.OrbitRadius = v end
+)
+
+makeSlider("Orbit Speed", "⚡", 30, 360, 90,
+    function(v) return v .. "°/s" end,
+    function(v) State.OrbitSpeed = v end
+)
+
+makeSlider("Attack Rate", "🗡️", 0.05, 0.5, 0.12,
+    function(v) return v .. "s" end,
+    function(v) State.AttackInterval = v end
 )
 
 makeSlider("Farm Range", "📍", 0, 500, 150,
