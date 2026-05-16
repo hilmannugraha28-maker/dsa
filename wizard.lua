@@ -18,7 +18,7 @@ local Root = Char:WaitForChild("HumanoidRootPart")
 
 local S = {
     AutoFarm=false, InstantKill=false, AutoSkill=false,
-    AutoRespawn=false, AutoClick=false, FarmRange=150, FarmDelay=0.3,
+    AutoRespawn=false, FarmRange=150, FarmDelay=0.3,
     OrbitRadius=4, OrbitSpeed=120, AttackRate=0.1,
     FarmOrigin=nil, LastPos=nil,
 }
@@ -204,32 +204,34 @@ local function fireAttack(target)
             if t then t.Parent = Char; tool = t end
         end
     end
+
+    local targetRoot = nil
+    if target then
+        targetRoot = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso") or target.PrimaryPart
+    end
+
     -- 1. Tool activate
     if tool then pcall(function() tool:Activate() end) end
-    -- 2. getconnections
+    -- 2. getconnections (trigger tool LocalScript tanpa mouse)
     if tool then pcall(function() for _,c in ipairs(getconnections(tool.Activated)) do c:Fire() end end) end
-    -- 3. Fire main remote (RemoteEvent.RemoteEvent)
-    if mainRemote then pcall(function() mainRemote:FireServer() end) end
+
+    -- 3. Fire main remote dengan berbagai argumen (game mungkin butuh target info)
+    if mainRemote and targetRoot then
+        pcall(function() mainRemote:FireServer(targetRoot.CFrame) end)
+        pcall(function() mainRemote:FireServer(targetRoot.Position) end)
+        pcall(function() mainRemote:FireServer(target) end)
+        pcall(function() mainRemote:FireServer() end)
+    end
+
     -- 4. Fire DeriveSkill
     if deriveSkill then pcall(function() deriveSkill:FireServer() end) end
-    -- 5. firetouchinterest
-    if target then
+
+    -- 5. firetouchinterest (simulasi sentuh fisik — ZERO mouse)
+    if targetRoot and Root then
         pcall(function()
-            local tp = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso") or target.PrimaryPart
-            if tp and Root then
-                firetouchinterest(Root, tp, 0)
-                task.wait(0.05)
-                firetouchinterest(Root, tp, 1)
-            end
-        end)
-    end
-    -- 6. Auto Click (OPSIONAL)
-    if S.AutoClick then
-        pcall(function()
-            local vp = workspace.CurrentCamera.ViewportSize
-            VIM:SendMouseButtonEvent(vp.X/2, vp.Y/2, 0, true, game, 1)
-            task.wait(0.03)
-            VIM:SendMouseButtonEvent(vp.X/2, vp.Y/2, 0, false, game, 1)
+            firetouchinterest(Root, targetRoot, 0)
+            task.wait(0.05)
+            firetouchinterest(Root, targetRoot, 1)
         end)
     end
 end
