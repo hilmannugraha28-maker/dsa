@@ -135,37 +135,48 @@ local spiedRemote = nil
 local spiedArgs = nil
 local spyReady = false
 
--- Hook __namecall untuk tangkap remote serangan
+-- Scan semua RemoteEvent SAAT ini (non-hook, safe)
+-- Lalu listen manual click via .OnClientEvent / connections
 task.spawn(function()
-    pcall(function()
+    -- Method 1: hookfunction (aman, tidak block panggilan asli)
+    local ok = pcall(function()
         local mt = getrawmetatable(game)
-        local old = mt.__namecall
-        setreadonly(mt, false)
-        mt.__namecall = newcclosure(function(self, ...)
+        local oldNC = mt.__namecall
+        local hook
+        hook = hookfunction(oldNC, newcclosure(function(self, ...)
             local method = getnamecallmethod()
-            local args = {...}
-            if method == "FireServer" and typeof(self) == "Instance" then
-                pcall(function()
-                    if self:IsA("RemoteEvent") then
-                        local n = self.Name:lower()
-                        -- Tangkap remote yang kemungkinan attack
-                        if n:find("attack") or n:find("swing") or n:find("cast")
-                            or n:find("spell") or n:find("hit") or n:find("damage")
-                            or n:find("fire") or n:find("use") or n:find("skill")
-                            or n:find("combat") or n:find("weapon") or n:find("click") then
-                            spiedRemote = self
-                            spiedArgs = args
-                            spyReady = true
-                            print("[WA Spy] Remote captured: " .. self.Name)
-                        end
-                    end
-                end)
+            if method == "FireServer" and typeof(self) == "Instance" and self:IsA("RemoteEvent") and not spyReady then
+                local n = self.Name:lower()
+                if n:find("attack") or n:find("swing") or n:find("cast")
+                    or n:find("spell") or n:find("hit") or n:find("damage")
+                    or n:find("use") or n:find("skill") or n:find("combat")
+                    or n:find("weapon") then
+                    spiedRemote = self
+                    spiedArgs = {...}
+                    spyReady = true
+                    print("[WA Spy] Captured: " .. self.Name)
+                end
             end
-            return old(self, ...)
-        end)
-        setreadonly(mt, true)
+            return hook(self, ...)
+        end))
     end)
-    print("[WA] Remote Spy aktif — serang 1x manual untuk capture!")
+    -- Method 2: fallback tanpa hook — scan remote dari RS
+    if not ok then
+        print("[WA] hookfunction gagal, pakai scan mode")
+        for _,remote in ipairs(RS:GetDescendants()) do
+            if remote:IsA("RemoteEvent") then
+                local n = remote.Name:lower()
+                if n:find("attack") or n:find("swing") or n:find("cast") or n:find("hit") or n:find("damage") then
+                    spiedRemote = remote
+                    spyReady = true
+                    spiedArgs = {}
+                    print("[WA Scan] Found: " .. remote.Name)
+                    break
+                end
+            end
+        end
+    end
+    print("[WA] Attack system ready — " .. (spyReady and "Remote: "..spiedRemote.Name or "serang 1x manual untuk capture"))
 end)
 
 local function pressKey(key)
