@@ -80,6 +80,8 @@ local function isEnemy(model)
     -- Blacklist nama
     local n = model.Name:lower()
     for _,kw in ipairs(BLACKLIST) do if n:find(kw,1,true) then return false end end
+    -- Skip model tanpa nama atau nama terlalu pendek
+    if n=="" or #model.Name<=1 then return false end
     -- Blacklist folder parent
     if model.Parent and model.Parent:IsA("Folder") then
         local pn = model.Parent.Name:lower()
@@ -88,8 +90,8 @@ local function isEnemy(model)
     -- Health check
     local h = model:FindFirstChild("Humanoid")
     if not h or h.Health<=0 or h.MaxHealth<=0 or h.MaxHealth==math.huge then return false end
-    -- Skip jika tidak bisa di-damage (WalkSpeed=0 biasanya NPC statis)
-    if h.WalkSpeed==0 and h.MaxHealth<100 then return false end
+    -- Skip NPC statis (WalkSpeed=0 = tidak jalan = bukan musuh)
+    if h.WalkSpeed==0 then return false end
     return true
 end
 
@@ -169,6 +171,7 @@ local function orbitKill(enemy)
     if not enemy or not enemy.Parent then return end
     local h=enemy:FindFirstChild("Humanoid")
     if not h or h.Health<=0 then return end
+    print("[WA] Target: " .. enemy.Name .. " | HP: " .. h.Health .. "/" .. h.MaxHealth .. " | Speed: " .. h.WalkSpeed)
     stopOrbit(); orbitActive=true
     local angle,lastAtk=0,0
     orbitConn = RunService.Heartbeat:Connect(function(dt)
