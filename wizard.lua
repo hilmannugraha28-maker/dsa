@@ -128,37 +128,60 @@ local function scanMobs()
 end
 
 -- ========================
--- ATTACK SYSTEM
+-- ATTACK SYSTEM (Remote Spy — ZERO mouse)
 -- ========================
+-- Serang 1x manual → script tangkap remote → replay otomatis
+local spiedRemote = nil
+local spiedArgs = nil
+local spyReady = false
+
+-- Hook __namecall untuk tangkap remote serangan
+task.spawn(function()
+    pcall(function()
+        local mt = getrawmetatable(game)
+        local old = mt.__namecall
+        setreadonly(mt, false)
+        mt.__namecall = newcclosure(function(self, ...)
+            local method = getnamecallmethod()
+            local args = {...}
+            if method == "FireServer" and typeof(self) == "Instance" then
+                pcall(function()
+                    if self:IsA("RemoteEvent") then
+                        local n = self.Name:lower()
+                        -- Tangkap remote yang kemungkinan attack
+                        if n:find("attack") or n:find("swing") or n:find("cast")
+                            or n:find("spell") or n:find("hit") or n:find("damage")
+                            or n:find("fire") or n:find("use") or n:find("skill")
+                            or n:find("combat") or n:find("weapon") or n:find("click") then
+                            spiedRemote = self
+                            spiedArgs = args
+                            spyReady = true
+                            print("[WA Spy] Remote captured: " .. self.Name)
+                        end
+                    end
+                end)
+            end
+            return old(self, ...)
+        end)
+        setreadonly(mt, true)
+    end)
+    print("[WA] Remote Spy aktif — serang 1x manual untuk capture!")
+end)
+
 local function pressKey(key)
     pcall(function() VIM:SendKeyEvent(true,key,false,game); task.wait(0.05); VIM:SendKeyEvent(false,key,false,game) end)
 end
 
 local function fireAttack()
-    -- 1. Tool activate (native)
+    -- Prioritas: replay remote yang sudah di-spy (100% server-side, 0 mouse)
+    if spyReady and spiedRemote then
+        pcall(function() spiedRemote:FireServer(table.unpack(spiedArgs or {})) end)
+        return
+    end
+    -- Fallback: tool activate + getconnections (tanpa mouse)
     local tool = Char:FindFirstChildOfClass("Tool")
     if tool then pcall(function() tool:Activate() end) end
-    -- 2. getconnections
     if tool then pcall(function() for _,c in ipairs(getconnections(tool.Activated)) do c:Fire() end end) end
-    -- 3. Simulasi klik di TENGAH layar (karakter sudah menghadap musuh)
-    pcall(function()
-        local vp = workspace.CurrentCamera.ViewportSize
-        local cx, cy = vp.X/2, vp.Y/2
-        VIM:SendMouseButtonEvent(cx, cy, 0, true, game, 1)
-        task.wait(0.03)
-        VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
-    end)
-    -- 4. mouse1click fallback (executor API)
-    pcall(function() mouse1click() end)
-    -- 5. Fire combat remotes
-    for _,remote in ipairs(RS:GetDescendants()) do
-        if remote:IsA("RemoteEvent") then
-            local n=remote.Name:lower()
-            if n:find("attack") or n:find("swing") or n:find("cast") or n:find("hit") or n:find("damage") then
-                pcall(function() remote:FireServer() end)
-            end
-        end
-    end
 end
 
 -- ========================
