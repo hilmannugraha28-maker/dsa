@@ -83,6 +83,7 @@ local BLACKLIST = {
     "哈利因特","莱敏","罗杰","矿工","猎魔人","逃出","兽人",
     -- Game-specific NPC & display models
     "harryint","rank_","rig","npc1","npc2","npc3","npc4",
+    "blueberrybush","blueberry","bird nest","bird","nest","bush","mushroom",
 }
 
 -- Folder yang berisi NPC damai (SKIP)
