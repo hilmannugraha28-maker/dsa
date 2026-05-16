@@ -116,6 +116,7 @@ end
 
 local function scanMobs()
     local mobs,seen = {},{}
+    -- HANYA scan folder Monster (tempat musuh sesungguhnya)
     local folders = {"Monster","Enemies","Mobs","Monsters","Enemy","Mob","Boss","Creature"}
     for _,fn in ipairs(folders) do
         local f = WS:FindFirstChild(fn)
@@ -126,17 +127,7 @@ local function scanMobs()
             end
         end end
     end
-    if #mobs==0 then
-        for _,obj in ipairs(WS:GetDescendants()) do
-            if obj:IsA("Humanoid") and obj.Health>0 and not seen[obj.Parent] then
-                local m=obj.Parent
-                if m:IsA("Model") and isEnemy(m) then
-                    local r=m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
-                    if r then table.insert(mobs,{model=m,root=r,dist=(Root.Position-r.Position).Magnitude}); seen[m]=true end
-                end
-            end
-        end
-    end
+    -- TIDAK ada fallback scan seluruh Workspace (supaya tidak target mushroom/bird/dll)
     table.sort(mobs,function(a,b) return a.dist<b.dist end)
     if S.FarmRange>0 and S.FarmOrigin then
         local f={}
