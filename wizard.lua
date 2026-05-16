@@ -18,7 +18,7 @@ local Root = Char:WaitForChild("HumanoidRootPart")
 
 local S = {
     AutoFarm=false, InstantKill=false, AutoSkill=false,
-    AutoRespawn=false, FarmRange=150, FarmDelay=0.3,
+    AutoRespawn=false, AutoClick=false, FarmRange=150, FarmDelay=0.3,
     OrbitRadius=4, OrbitSpeed=120, AttackRate=0.1,
     FarmOrigin=nil, LastPos=nil,
 }
