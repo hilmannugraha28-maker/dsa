@@ -37,28 +37,41 @@ local function notify(t,m)
     game:GetService("StarterGui"):SetCore("SendNotification",{Title=t,Text=m,Duration=3})
 end
 
--- Respawn + teleport balik + auto equip (semua dalam Auto Respawn)
+-- Respawn + auto equip + teleport balik
 LP.CharacterAdded:Connect(function(c)
     Char=c; Hum=c:WaitForChild("Humanoid"); Root=c:WaitForChild("HumanoidRootPart")
     if S.AutoRespawn then
-        -- Teleport balik
-        if S.LastPos then
-            task.wait(1)
-            pcall(function() Root.CFrame = CFrame.new(S.LastPos + Vector3.new(0,3,0)) end)
-        end
-        -- Auto equip senjata
+        local savedPos = S.LastPos
+        task.wait(5) -- tunggu game selesai respawn
+        -- 1. Equip senjata DULU (sebelum teleport)
         task.spawn(function()
-            task.wait(1.5)
-            for i=1,10 do
+            for i=1,15 do
                 local bp = LP:FindFirstChild("Backpack")
                 if bp then
                     local tool = bp:FindFirstChildOfClass("Tool")
-                    if tool then tool.Parent = Char; return end
+                    if tool then
+                        tool.Parent = Char
+                        print("[WA] Equipped: " .. tool.Name)
+                        break
+                    end
                 end
-                task.wait(0.5)
+                task.wait(0.3)
             end
         end)
-        notify("Respawn","Kembali + equip senjata!")
+        -- 2. Teleport balik (retry 5x supaya pasti nyampe)
+        if savedPos then
+            task.spawn(function()
+                for i=1,5 do
+                    task.wait(1)
+                    pcall(function()
+                        if Root and Root.Parent then
+                            Root.CFrame = CFrame.new(savedPos + Vector3.new(0,3,0))
+                        end
+                    end)
+                end
+                notify("Respawn","Kembali + equip senjata!")
+            end)
+        end
     end
 end)
 
