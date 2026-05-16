@@ -145,25 +145,40 @@ local function scanMobs()
 end
 
 -- ========================
--- ATTACK SYSTEM (ZERO hook, optional mouse)
+-- ========================
+-- ATTACK SYSTEM (Wizard Alchemy specific)
 -- ========================
 local attackRemotes = {}
 local allRemotes = {}
+local mainRemote = nil -- RemoteEvent.RemoteEvent (generic remote)
+local deriveSkill = nil
+local releaseGroupSkill = nil
 
 -- Scan semua remote
 task.spawn(function()
     for _,remote in ipairs(RS:GetDescendants()) do
         if remote:IsA("RemoteEvent") then
             table.insert(allRemotes, remote)
-            local n = remote.Name:lower()
-            if n:find("attack") or n:find("swing") or n:find("cast")
-                or n:find("spell") or n:find("hit") or n:find("damage")
-                or n:find("combat") or n:find("weapon") or n:find("skill") then
+            local n = remote.Name
+            -- Cari remote spesifik Wizard Alchemy
+            if n == "RemoteEvent" and remote.Parent and remote.Parent.Name == "RemoteEvent" then
+                mainRemote = remote
+                print("[WA] Main remote: " .. remote:GetFullName())
+            elseif n == "DeriveSkill" then
+                deriveSkill = remote
+                print("[WA] DeriveSkill: " .. remote:GetFullName())
+            elseif n == "ReleaseGroupSkill" then
+                releaseGroupSkill = remote
+                print("[WA] ReleaseGroupSkill: " .. remote:GetFullName())
+            end
+            -- Tetap collect semua skill/damage remote
+            local nl = n:lower()
+            if nl:find("skill") or nl:find("damage") or nl:find("attack") or nl:find("hit") then
                 table.insert(attackRemotes, remote)
             end
         end
     end
-    print("[WA] Attack remotes: " .. #attackRemotes .. " | Total remotes: " .. #allRemotes)
+    print("[WA] Attack remotes: " .. #attackRemotes .. " | Total: " .. #allRemotes)
 end)
 
 local function scanAllRemotes()
@@ -179,7 +194,7 @@ local function pressKey(key)
 end
 
 local function fireAttack(target)
-    -- 0. Auto equip jika belum pegang senjata
+    -- 0. Auto equip
     local tool = Char:FindFirstChildOfClass("Tool")
     if not tool then
         local bp = LP:FindFirstChild("Backpack")
@@ -192,11 +207,11 @@ local function fireAttack(target)
     if tool then pcall(function() tool:Activate() end) end
     -- 2. getconnections
     if tool then pcall(function() for _,c in ipairs(getconnections(tool.Activated)) do c:Fire() end end) end
-    -- 3. Fire attack remotes
-    for _,remote in ipairs(attackRemotes) do
-        pcall(function() remote:FireServer() end)
-    end
-    -- 4. firetouchinterest
+    -- 3. Fire main remote (RemoteEvent.RemoteEvent)
+    if mainRemote then pcall(function() mainRemote:FireServer() end) end
+    -- 4. Fire DeriveSkill
+    if deriveSkill then pcall(function() deriveSkill:FireServer() end) end
+    -- 5. firetouchinterest
     if target then
         pcall(function()
             local tp = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso") or target.PrimaryPart
@@ -207,7 +222,7 @@ local function fireAttack(target)
             end
         end)
     end
-    -- 5. Auto Click (OPSIONAL — hanya jika toggle ON)
+    -- 6. Auto Click (OPSIONAL)
     if S.AutoClick then
         pcall(function()
             local vp = workspace.CurrentCamera.ViewportSize
