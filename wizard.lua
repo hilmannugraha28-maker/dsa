@@ -80,8 +80,9 @@ local BLACKLIST = {
     "alchemist","potion","cauldron","table","station","forge","anvil",
     -- Chinese NPC names (Wizard Alchemy specific)
     "隆巴特","商人","店主","炼金","对话","任务","向导","村民",
-    -- Game-specific NPC
-    "harryint",
+    "哈利因特","莱敏","罗杰","矿工","猎魔人","逃出","兽人",
+    -- Game-specific NPC & display models
+    "harryint","rank_","rig","npc1","npc2","npc3","npc4",
 }
 
 -- Folder yang berisi NPC damai (SKIP)
@@ -114,7 +115,7 @@ end
 
 local function scanMobs()
     local mobs,seen = {},{}
-    local folders = {"Enemies","Mobs","Monsters","Enemy","Mob","Boss","Creature"}
+    local folders = {"Monster","Enemies","Mobs","Monsters","Enemy","Mob","Boss","Creature"}
     for _,fn in ipairs(folders) do
         local f = WS:FindFirstChild(fn)
         if f then for _,m in ipairs(f:GetChildren()) do
