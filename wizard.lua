@@ -245,7 +245,33 @@ end
 -- ORBIT + KILL
 -- ========================
 local orbitConn, orbitActive = nil, false
-local function stopOrbit() orbitActive=false; if orbitConn then orbitConn:Disconnect(); orbitConn=nil end end
+local mouseHeld = false
+
+local function releaseMouseHold()
+    if mouseHeld then
+        pcall(function()
+            local vp = workspace.CurrentCamera.ViewportSize
+            VIM:SendMouseButtonEvent(vp.X/2, vp.Y/2, 0, false, game, 1) -- release
+        end)
+        mouseHeld = false
+    end
+end
+
+local function startMouseHold()
+    if not mouseHeld then
+        pcall(function()
+            local vp = workspace.CurrentCamera.ViewportSize
+            VIM:SendMouseButtonEvent(vp.X/2, vp.Y/2, 0, true, game, 1) -- hold down
+        end)
+        mouseHeld = true
+    end
+end
+
+local function stopOrbit()
+    orbitActive=false
+    releaseMouseHold() -- lepas mouse saat orbit berhenti
+    if orbitConn then orbitConn:Disconnect(); orbitConn=nil end
+end
 
 local function orbitKill(enemy)
     if not enemy or not enemy.Parent then return end
@@ -253,6 +279,7 @@ local function orbitKill(enemy)
     if not h or h.Health<=0 then return end
     print("[WA] Target: " .. enemy.Name .. " | HP: " .. h.Health .. "/" .. h.MaxHealth .. " | Speed: " .. h.WalkSpeed)
     stopOrbit(); orbitActive=true
+    startMouseHold() -- tekan mouse 1x (hold)
     local angle,lastAtk=0,0
     orbitConn = RunService.Heartbeat:Connect(function(dt)
         if not orbitActive or not S.AutoFarm then orbitActive=false; return end
@@ -269,11 +296,10 @@ local function orbitKill(enemy)
             lastAtk=now
             pcall(function() fireAttack(enemy) end)
             if S.AutoSkill then pressKey(Enum.KeyCode.R); pressKey(Enum.KeyCode.E) end
-            -- damage dari server (tanpa client-side health manipulation)
         end
     end)
     while orbitActive do task.wait(0.1) end
-    stopOrbit()
+    stopOrbit() -- lepas mouse otomatis
 end
 
 -- ========================
