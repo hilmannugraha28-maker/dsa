@@ -406,8 +406,37 @@ local function mkSec(t)
 end
 
 -- ========================
--- BUILD TOGGLES
+-- BUILD GUI
 -- ========================
+-- DEBUG di atas supaya mudah ditemukan
+mkSec("  DEBUG")
+local scb=Instance.new("TextButton"); scb.Size=UDim2.new(1,0,0,28); scb.BackgroundColor3=Color3.fromRGB(80,30,30)
+scb.Text="Scan All Remotes"; scb.TextColor3=Color3.fromRGB(255,200,200); scb.TextSize=11
+scb.Font=Enum.Font.GothamBold; scb.BorderSizePixel=0; scb.Parent=SF
+Instance.new("UICorner",scb).CornerRadius=UDim.new(0,8)
+scb.MouseButton1Click:Connect(scanAllRemotes)
+
+local npb=Instance.new("TextButton"); npb.Size=UDim2.new(1,0,0,28); npb.BackgroundColor3=Color3.fromRGB(80,50,20)
+npb.Text="Scan All NPC"; npb.TextColor3=Color3.fromRGB(255,230,180); npb.TextSize=11
+npb.Font=Enum.Font.GothamBold; npb.BorderSizePixel=0; npb.Parent=SF
+Instance.new("UICorner",npb).CornerRadius=UDim.new(0,8)
+npb.MouseButton1Click:Connect(function()
+    print("=== ALL HUMANOID MODELS ===")
+    for _,obj in ipairs(WS:GetDescendants()) do
+        if obj:IsA("Humanoid") and obj.Parent and obj.Parent:IsA("Model") then
+            local m = obj.Parent
+            if m ~= Char then
+                local blocked = not isEnemy(m)
+                print(string.format("  %s [%s] HP:%s/%s SPD:%s PATH:%s",
+                    blocked and "BLOCKED" or "TARGET",
+                    m.Name, tostring(obj.Health), tostring(obj.MaxHealth),
+                    tostring(obj.WalkSpeed), m:GetFullName()))
+            end
+        end
+    end
+    print("=== END ===")
+end)
+
 mkSec("  COMBAT")
 
 mkToggle("Instant Kill","Orbit + rapid attack semua mob",function(on)
@@ -442,36 +471,6 @@ mkSlider("Orbit Radius",2,12,4,function(v) return v.."st" end,function(v) S.Orbi
 mkSlider("Orbit Speed",30,360,120,function(v) return v.."/s" end,function(v) S.OrbitSpeed=v end)
 mkSlider("Attack Rate",0.05,0.5,0.1,function(v) return v.."s" end,function(v) S.AttackRate=v end)
 mkSlider("Farm Delay",0.1,2,0.3,function(v) return v.."s" end,function(v) S.FarmDelay=v end)
-
-mkSec("  DEBUG")
--- Tombol scan semua remote
-local scb=Instance.new("TextButton"); scb.Size=UDim2.new(1,0,0,28); scb.BackgroundColor3=Color3.fromRGB(80,30,30)
-scb.Text="Scan All Remotes (cek Output)"; scb.TextColor3=Color3.fromRGB(255,200,200); scb.TextSize=11
-scb.Font=Enum.Font.GothamBold; scb.BorderSizePixel=0; scb.Parent=SF
-Instance.new("UICorner",scb).CornerRadius=UDim.new(0,8)
-scb.MouseButton1Click:Connect(scanAllRemotes)
-
--- Tombol scan NPC
-local npb=Instance.new("TextButton"); npb.Size=UDim2.new(1,0,0,28); npb.BackgroundColor3=Color3.fromRGB(80,50,20)
-npb.Text="Scan All NPC (cek Output)"; npb.TextColor3=Color3.fromRGB(255,230,180); npb.TextSize=11
-npb.Font=Enum.Font.GothamBold; npb.BorderSizePixel=0; npb.Parent=SF
-Instance.new("UICorner",npb).CornerRadius=UDim.new(0,8)
-npb.MouseButton1Click:Connect(function()
-    print("=== ALL HUMANOID MODELS ===")
-    for _,obj in ipairs(WS:GetDescendants()) do
-        if obj:IsA("Humanoid") and obj.Parent and obj.Parent:IsA("Model") then
-            local m = obj.Parent
-            if m ~= Char then
-                local blocked = not isEnemy(m)
-                print(string.format("  %s [%s] HP:%s/%s SPD:%s PATH:%s",
-                    blocked and "[BLOCKED]" or "[TARGET]",
-                    m.Name, tostring(obj.Health), tostring(obj.MaxHealth),
-                    tostring(obj.WalkSpeed), m:GetFullName()))
-            end
-        end
-    end
-    print("=== END ===")
-end)
 
 -- TELEPORT PLAYER
 mkSec("  TELEPORT")
