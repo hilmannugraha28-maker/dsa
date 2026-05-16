@@ -65,6 +65,8 @@ local BLACKLIST = {
     "alchemist","potion","cauldron","table","station","forge","anvil",
     -- Chinese NPC names (Wizard Alchemy specific)
     "隆巴特","商人","店主","炼金","对话","任务","向导","村民",
+    -- Game-specific NPC
+    "harryint",
 }
 
 -- Folder yang berisi NPC damai (SKIP)
@@ -128,50 +130,67 @@ local function scanMobs()
 end
 
 -- ========================
--- ATTACK SYSTEM (ZERO hook, ZERO mouse)
+-- ATTACK SYSTEM (ZERO hook, optional mouse)
 -- ========================
--- Scan remote dari ReplicatedStorage, TANPA hook apapun
 local attackRemotes = {}
+local allRemotes = {}
 
+-- Scan semua remote
 task.spawn(function()
-    -- Cari semua remote yang kemungkinan attack
     for _,remote in ipairs(RS:GetDescendants()) do
         if remote:IsA("RemoteEvent") then
+            table.insert(allRemotes, remote)
             local n = remote.Name:lower()
             if n:find("attack") or n:find("swing") or n:find("cast")
                 or n:find("spell") or n:find("hit") or n:find("damage")
                 or n:find("combat") or n:find("weapon") or n:find("skill") then
                 table.insert(attackRemotes, remote)
-                print("[WA] Attack remote found: " .. remote:GetFullName())
             end
         end
     end
-    print("[WA] Total attack remotes: " .. #attackRemotes)
+    print("[WA] Attack remotes: " .. #attackRemotes .. " | Total remotes: " .. #allRemotes)
 end)
+
+local function scanAllRemotes()
+    print("=== ALL REMOTE EVENTS ===")
+    for _,remote in ipairs(allRemotes) do
+        print("  " .. remote:GetFullName())
+    end
+    print("=== END (" .. #allRemotes .. " total) ===")
+end
 
 local function pressKey(key)
     pcall(function() VIM:SendKeyEvent(true,key,false,game); task.wait(0.05); VIM:SendKeyEvent(false,key,false,game) end)
 end
 
 local function fireAttack(target)
-    -- 1. Tool activate (native, no mouse)
+    -- 1. Tool activate
     local tool = Char:FindFirstChildOfClass("Tool")
     if tool then pcall(function() tool:Activate() end) end
-    -- 2. getconnections fallback
+    -- 2. getconnections
     if tool then pcall(function() for _,c in ipairs(getconnections(tool.Activated)) do c:Fire() end end) end
     -- 3. Fire attack remotes
     for _,remote in ipairs(attackRemotes) do
         pcall(function() remote:FireServer() end)
     end
-    -- 4. firetouchinterest (simulasi sentuh musuh — server-side damage)
+    -- 4. firetouchinterest
     if target then
         pcall(function()
             local tp = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso") or target.PrimaryPart
             if tp and Root then
-                firetouchinterest(Root, tp, 0) -- touch
+                firetouchinterest(Root, tp, 0)
                 task.wait(0.05)
-                firetouchinterest(Root, tp, 1) -- untouch
+                firetouchinterest(Root, tp, 1)
             end
+        end)
+    end
+    -- 5. Auto Click (OPSIONAL — hanya jika toggle ON)
+    if S.AutoClick then
+        pcall(function()
+            local vp = workspace.CurrentCamera.ViewportSize
+            VIM:SendMouseButtonEvent(vp.X/2, vp.Y/2, 0, true, game, 1)
+            task.wait(0.03)
+            VIM:SendMouseButtonEvent(vp.X/2, vp.Y/2, 0, false, game, 1)
         end)
     end
 end
@@ -373,6 +392,10 @@ mkToggle("Auto Respawn","Balik ke posisi terakhir saat mati",function(on)
     S.AutoRespawn=on; notify("Auto Respawn",on and "ON" or "OFF")
 end)
 
+mkToggle("Auto Click","Klik tengah layar saat serang (toggle)",function(on)
+    S.AutoClick=on; notify("Auto Click",on and "ON" or "OFF")
+end)
+
 mkSec("  SETTINGS")
 mkSlider("Farm Range",0,500,150,function(v) return v==0 and "ALL" or v.."st" end,function(v)
     S.FarmRange=v; if S.InstantKill or S.AutoFarm then S.FarmOrigin=Root.Position end
@@ -381,6 +404,14 @@ mkSlider("Orbit Radius",2,12,4,function(v) return v.."st" end,function(v) S.Orbi
 mkSlider("Orbit Speed",30,360,120,function(v) return v.."/s" end,function(v) S.OrbitSpeed=v end)
 mkSlider("Attack Rate",0.05,0.5,0.1,function(v) return v.."s" end,function(v) S.AttackRate=v end)
 mkSlider("Farm Delay",0.1,2,0.3,function(v) return v.."s" end,function(v) S.FarmDelay=v end)
+
+mkSec("  DEBUG")
+-- Tombol scan semua remote
+local scb=Instance.new("TextButton"); scb.Size=UDim2.new(1,0,0,28); scb.BackgroundColor3=Color3.fromRGB(80,30,30)
+scb.Text="Scan All Remotes (cek Output)"; scb.TextColor3=Color3.fromRGB(255,200,200); scb.TextSize=11
+scb.Font=Enum.Font.GothamBold; scb.BorderSizePixel=0; scb.Parent=SF
+Instance.new("UICorner",scb).CornerRadius=UDim.new(0,8)
+scb.MouseButton1Click:Connect(scanAllRemotes)
 
 -- TELEPORT PLAYER
 mkSec("  TELEPORT")
