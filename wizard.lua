@@ -133,9 +133,22 @@ local function pressKey(key)
 end
 
 local function fireAttack()
+    -- 1. Tool activate (native)
     local tool = Char:FindFirstChildOfClass("Tool")
     if tool then pcall(function() tool:Activate() end) end
+    -- 2. getconnections
     if tool then pcall(function() for _,c in ipairs(getconnections(tool.Activated)) do c:Fire() end end) end
+    -- 3. Simulasi klik di TENGAH layar (karakter sudah menghadap musuh)
+    pcall(function()
+        local vp = workspace.CurrentCamera.ViewportSize
+        local cx, cy = vp.X/2, vp.Y/2
+        VIM:SendMouseButtonEvent(cx, cy, 0, true, game, 1)
+        task.wait(0.03)
+        VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
+    end)
+    -- 4. mouse1click fallback (executor API)
+    pcall(function() mouse1click() end)
+    -- 5. Fire combat remotes
     for _,remote in ipairs(RS:GetDescendants()) do
         if remote:IsA("RemoteEvent") then
             local n=remote.Name:lower()
