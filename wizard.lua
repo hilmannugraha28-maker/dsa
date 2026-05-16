@@ -575,8 +575,11 @@ end
 -- AUTO SELL SYSTEM (Remote Spy via __namecall)
 -- ========================
 
-local cachedSellRemote = nil
-local cachedSellArgs   = nil
+local cachedSellRemote    = nil  -- remote update/select item
+local cachedSellArgs      = nil
+local cachedConfirmRemote = nil  -- remote confirm sell
+local cachedConfirmArgs   = nil
+local State_DebugRemotes  = false
 
 -- Hook via __namecall (reliable di semua executor)
 task.spawn(function()
@@ -587,17 +590,26 @@ task.spawn(function()
         mt.__namecall = newcclosure(function(self, ...)
             local method = getnamecallmethod()
             local args = {...}
-            -- Intercept FireServer pada RemoteEvent
             if method == "FireServer" and typeof(self) == "Instance" then
-                local ok2, _ = pcall(function()
+                pcall(function()
                     if self:IsA("RemoteEvent") then
                         local n = self.Name:lower()
-                        if n:find("sell") or n:find("shop") or n:find("trade")
-                            or n:find("exchange") or n:find("merchant")
-                            or n:find("隆巴特") or n:find("item") then
+                        if State_DebugRemotes then
+                            print("[DEBUG Remote] " .. self.Name)
+                        end
+                        -- Capture update/select remote
+                        if n:find("trade") or n:find("shop") or n:find("sell")
+                            or n:find("item") or n:find("exchange") then
                             cachedSellRemote = self
                             cachedSellArgs   = args
-                            print("[⚡ Sell Spy] ✅ Captured: " .. self.Name)
+                            print("[⚡ Spy] Update: " .. self.Name)
+                        end
+                        -- Capture confirm remote (lebih spesifik)
+                        if n:find("confirm") or n:find("buy") or n:find("purchase")
+                            or n:find("complete") or n:find("submit") then
+                            cachedConfirmRemote = self
+                            cachedConfirmArgs   = args
+                            print("[⚡ Spy] ✅ CONFIRM: " .. self.Name)
                         end
                     end
                 end)
@@ -946,10 +958,17 @@ local function sellInventory()
     -- 5. Klik Confirm Sell
     local sold = clickConfirmSell()
 
-    -- 6. Fallback: coba cached remote
-    if not sold and cachedSellRemote then
-        pcall(function() cachedSellRemote:FireServer(table.unpack(cachedSellArgs or {})) end)
-        pcall(function() cachedSellRemote:FireServer() end)
+    -- 6. Fallback: prioritaskan confirm remote, lalu update remote
+    if not sold then
+        if cachedConfirmRemote then
+            pcall(function() cachedConfirmRemote:FireServer(table.unpack(cachedConfirmArgs or {})) end)
+            pcall(function() cachedConfirmRemote:FireServer() end)
+            print("[WA Sell] Fallback pakai CONFIRM remote: " .. cachedConfirmRemote.Name)
+        elseif cachedSellRemote then
+            pcall(function() cachedSellRemote:FireServer(table.unpack(cachedSellArgs or {})) end)
+            pcall(function() cachedSellRemote:FireServer() end)
+            print("[WA Sell] Fallback pakai update remote: " .. cachedSellRemote.Name)
+        end
     end
 
     return sold and 1 or 0
