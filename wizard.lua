@@ -43,22 +43,14 @@ LP.CharacterAdded:Connect(function(c)
     if S.AutoRespawn then
         local savedPos = S.LastPos
         task.wait(5) -- tunggu game selesai respawn
-        -- 1. Equip senjata (tekan tombol 1)
+        -- 1. Equip senjata (tekan tombol 1, 1x saja)
         task.spawn(function()
             task.wait(0.5)
-            for i=1,5 do
-                pcall(function()
-                    VIM:SendKeyEvent(true, Enum.KeyCode.One, false, game)
-                    task.wait(0.1)
-                    VIM:SendKeyEvent(false, Enum.KeyCode.One, false, game)
-                end)
-                -- cek apakah sudah equipped
-                if Char:FindFirstChildOfClass("Tool") then
-                    print("[WA] Weapon equipped via key 1")
-                    break
-                end
-                task.wait(0.5)
-            end
+            pcall(function()
+                VIM:SendKeyEvent(true, Enum.KeyCode.One, false, game)
+                task.wait(0.1)
+                VIM:SendKeyEvent(false, Enum.KeyCode.One, false, game)
+            end)
         end)
         -- 2. Teleport balik (retry 5x supaya pasti nyampe)
         if savedPos then
@@ -202,18 +194,7 @@ local function pressKey(key)
 end
 
 local function fireAttack(target)
-    -- 0. Auto equip
     local tool = Char:FindFirstChildOfClass("Tool")
-    if not tool then
-        -- Tekan 1 untuk equip
-        pcall(function()
-            VIM:SendKeyEvent(true, Enum.KeyCode.One, false, game)
-            task.wait(0.05)
-            VIM:SendKeyEvent(false, Enum.KeyCode.One, false, game)
-        end)
-        task.wait(0.1)
-        tool = Char:FindFirstChildOfClass("Tool")
-    end
 
     local targetRoot = nil
     if target then
