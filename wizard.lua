@@ -57,6 +57,7 @@ end
 local BLACKLIST = {
     -- English NPC names
     "wizard robe","robe","apprentice","shop","merchant","vendor","trader",
+    "buy wizard","buy","wizard",
     "quest","dialog","dialogue","friendly","civilian","keeper","banker",
     "guide","neutral","villager","dummy","tutorial","innkeeper","blacksmith",
     "tailor","instructor","mayor","noble","citizen","townsfolk","npc",
