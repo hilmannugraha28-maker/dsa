@@ -128,71 +128,52 @@ local function scanMobs()
 end
 
 -- ========================
--- ATTACK SYSTEM (Remote Spy — ZERO mouse)
+-- ATTACK SYSTEM (ZERO hook, ZERO mouse)
 -- ========================
--- Serang 1x manual → script tangkap remote → replay otomatis
-local spiedRemote = nil
-local spiedArgs = nil
-local spyReady = false
+-- Scan remote dari ReplicatedStorage, TANPA hook apapun
+local attackRemotes = {}
 
--- Scan semua RemoteEvent SAAT ini (non-hook, safe)
--- Lalu listen manual click via .OnClientEvent / connections
 task.spawn(function()
-    -- Method 1: hookfunction (aman, tidak block panggilan asli)
-    local ok = pcall(function()
-        local mt = getrawmetatable(game)
-        local oldNC = mt.__namecall
-        local hook
-        hook = hookfunction(oldNC, newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            if method == "FireServer" and typeof(self) == "Instance" and self:IsA("RemoteEvent") and not spyReady then
-                local n = self.Name:lower()
-                if n:find("attack") or n:find("swing") or n:find("cast")
-                    or n:find("spell") or n:find("hit") or n:find("damage")
-                    or n:find("use") or n:find("skill") or n:find("combat")
-                    or n:find("weapon") then
-                    spiedRemote = self
-                    spiedArgs = {...}
-                    spyReady = true
-                    print("[WA Spy] Captured: " .. self.Name)
-                end
-            end
-            return hook(self, ...)
-        end))
-    end)
-    -- Method 2: fallback tanpa hook — scan remote dari RS
-    if not ok then
-        print("[WA] hookfunction gagal, pakai scan mode")
-        for _,remote in ipairs(RS:GetDescendants()) do
-            if remote:IsA("RemoteEvent") then
-                local n = remote.Name:lower()
-                if n:find("attack") or n:find("swing") or n:find("cast") or n:find("hit") or n:find("damage") then
-                    spiedRemote = remote
-                    spyReady = true
-                    spiedArgs = {}
-                    print("[WA Scan] Found: " .. remote.Name)
-                    break
-                end
+    -- Cari semua remote yang kemungkinan attack
+    for _,remote in ipairs(RS:GetDescendants()) do
+        if remote:IsA("RemoteEvent") then
+            local n = remote.Name:lower()
+            if n:find("attack") or n:find("swing") or n:find("cast")
+                or n:find("spell") or n:find("hit") or n:find("damage")
+                or n:find("combat") or n:find("weapon") or n:find("skill") then
+                table.insert(attackRemotes, remote)
+                print("[WA] Attack remote found: " .. remote:GetFullName())
             end
         end
     end
-    print("[WA] Attack system ready — " .. (spyReady and "Remote: "..spiedRemote.Name or "serang 1x manual untuk capture"))
+    print("[WA] Total attack remotes: " .. #attackRemotes)
 end)
 
 local function pressKey(key)
     pcall(function() VIM:SendKeyEvent(true,key,false,game); task.wait(0.05); VIM:SendKeyEvent(false,key,false,game) end)
 end
 
-local function fireAttack()
-    -- Prioritas: replay remote yang sudah di-spy (100% server-side, 0 mouse)
-    if spyReady and spiedRemote then
-        pcall(function() spiedRemote:FireServer(table.unpack(spiedArgs or {})) end)
-        return
-    end
-    -- Fallback: tool activate + getconnections (tanpa mouse)
+local function fireAttack(target)
+    -- 1. Tool activate (native, no mouse)
     local tool = Char:FindFirstChildOfClass("Tool")
     if tool then pcall(function() tool:Activate() end) end
+    -- 2. getconnections fallback
     if tool then pcall(function() for _,c in ipairs(getconnections(tool.Activated)) do c:Fire() end end) end
+    -- 3. Fire attack remotes
+    for _,remote in ipairs(attackRemotes) do
+        pcall(function() remote:FireServer() end)
+    end
+    -- 4. firetouchinterest (simulasi sentuh musuh — server-side damage)
+    if target then
+        pcall(function()
+            local tp = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso") or target.PrimaryPart
+            if tp and Root then
+                firetouchinterest(Root, tp, 0) -- touch
+                task.wait(0.05)
+                firetouchinterest(Root, tp, 1) -- untouch
+            end
+        end)
+    end
 end
 
 -- ========================
@@ -221,7 +202,7 @@ local function orbitKill(enemy)
         local now=tick()
         if now-lastAtk>=S.AttackRate then
             lastAtk=now
-            pcall(fireAttack)
+            pcall(function() fireAttack(enemy) end)
             if S.AutoSkill then pressKey(Enum.KeyCode.R); pressKey(Enum.KeyCode.E) end
             pcall(function() if hm.Health>1 then hm.Health=1 end end)
         end
