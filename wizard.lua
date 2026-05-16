@@ -37,13 +37,28 @@ local function notify(t,m)
     game:GetService("StarterGui"):SetCore("SendNotification",{Title=t,Text=m,Duration=3})
 end
 
--- Respawn + teleport balik
+-- Respawn + teleport balik + auto equip (semua dalam Auto Respawn)
 LP.CharacterAdded:Connect(function(c)
     Char=c; Hum=c:WaitForChild("Humanoid"); Root=c:WaitForChild("HumanoidRootPart")
-    if S.AutoRespawn and S.LastPos then
-        task.wait(1)
-        pcall(function() Root.CFrame = CFrame.new(S.LastPos + Vector3.new(0,3,0)) end)
-        notify("Respawn","Kembali ke posisi terakhir!")
+    if S.AutoRespawn then
+        -- Teleport balik
+        if S.LastPos then
+            task.wait(1)
+            pcall(function() Root.CFrame = CFrame.new(S.LastPos + Vector3.new(0,3,0)) end)
+        end
+        -- Auto equip senjata
+        task.spawn(function()
+            task.wait(1.5)
+            for i=1,10 do
+                local bp = LP:FindFirstChild("Backpack")
+                if bp then
+                    local tool = bp:FindFirstChildOfClass("Tool")
+                    if tool then tool.Parent = Char; return end
+                end
+                task.wait(0.5)
+            end
+        end)
+        notify("Respawn","Kembali + equip senjata!")
     end
 end)
 
@@ -164,8 +179,16 @@ local function pressKey(key)
 end
 
 local function fireAttack(target)
-    -- 1. Tool activate
+    -- 0. Auto equip jika belum pegang senjata
     local tool = Char:FindFirstChildOfClass("Tool")
+    if not tool then
+        local bp = LP:FindFirstChild("Backpack")
+        if bp then
+            local t = bp:FindFirstChildOfClass("Tool")
+            if t then t.Parent = Char; tool = t end
+        end
+    end
+    -- 1. Tool activate
     if tool then pcall(function() tool:Activate() end) end
     -- 2. getconnections
     if tool then pcall(function() for _,c in ipairs(getconnections(tool.Activated)) do c:Fire() end end) end
