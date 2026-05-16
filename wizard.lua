@@ -379,6 +379,12 @@ local function orbitAndAttack(enemy)
     _orbitConn = RunService.Heartbeat:Connect(function(dt)
         if not _orbitRunning then return end
 
+        -- Hentikan jika SEMUA fitur combat dimatikan
+        if not State.InstantKill and not State.AutoAttack and not State.AutoFarm then
+            _orbitRunning = false
+            return
+        end
+
         -- Cek target masih valid
         if not enemy or not enemy.Parent then
             _orbitRunning = false
@@ -1324,6 +1330,7 @@ makeToggle("Instant Kill", "⚡", "Scan map lalu kill satu per satu", function(o
         notify("Instant Kill", "✅ Aktif! Range: " .. (State.FarmRange == 0 and "Unlimited" or State.FarmRange .. " studs"))
     else
         State.FarmOrigin = nil
+        stopOrbit()  -- langsung hentikan orbit
         notify("Instant Kill", "❌ Nonaktif")
     end
 end)
@@ -1368,6 +1375,7 @@ makeToggle("Auto Attack", "🗡️", "Serang musuh terdekat terus-menerus", func
         startAutoAttack()
         notify("Auto Attack", "✅ Aktif! Menyerang musuh terdekat")
     else
+        stopOrbit()  -- langsung hentikan orbit
         notify("Auto Attack", "❌ Nonaktif")
     end
 end)
@@ -1380,6 +1388,7 @@ makeToggle("Auto Farm", "🌾", "Otomatis teleport ke musuh dalam range", functi
         notify("Auto Farm", "✅ Aktif! Range: " .. (State.FarmRange == 0 and "Unlimited" or State.FarmRange .. " studs"))
     else
         State.FarmOrigin = nil
+        stopOrbit()  -- langsung hentikan orbit
         notify("Auto Farm", "❌ Nonaktif")
     end
 end)
