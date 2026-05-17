@@ -21,7 +21,7 @@ local S = {
     AutoRespawn=false, FarmRange=150, FarmDelay=0.3,
     OrbitRadius=4, OrbitSpeed=120, AttackRate=0.1,
     FarmOrigin=nil, LastPos=nil,
-    TargetHPMin=120, TargetHPMax=250, -- hanya serang mob MaxHP 120-250
+    TargetHPMin=120, TargetHPMax=300, -- hanya serang mob MaxHP 120-300
 }
 
 -- Save position history (rolling 1 menit)
