@@ -22,7 +22,6 @@ local S = {
     OrbitRadius=4, OrbitSpeed=120, AttackRate=0.1,
     FarmOrigin=nil, LastPos=nil,
     TargetHPMin=120, TargetHPMax=1000, -- hanya serang mob MaxHP 120-1000
-    HitMulti=1, -- fire attack X kali per hit
 }
 
 -- Save position history (rolling 1 menit)
@@ -303,7 +302,7 @@ local function orbitKill(enemy)
         local now=tick()
         if now-lastAtk>=S.AttackRate then
             lastAtk=now
-            for _=1,S.HitMulti do pcall(function() fireAttack(enemy) end) end
+            pcall(function() fireAttack(enemy) end)
             if S.AutoSkill then pressKey(Enum.KeyCode.R); pressKey(Enum.KeyCode.E) end
         end
     end)
@@ -424,9 +423,21 @@ local function mkSlider(label,mn,mx,def,fmt,cb)
         local v=math.floor((mn+rx*(mx-mn))*10+0.5)/10
         fl.Size=UDim2.new(rx,0,1,0); kb.Position=UDim2.new(rx,-6,0.5,-6); vl.Text=fmt(v); cb(v)
     end
-    sb.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true; upd(i.Position) end end)
-    sb.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end end)
-    UIS.InputChanged:Connect(function(i) if dragging and i.UserInputType==Enum.UserInputType.MouseMovement then upd(i.Position) end end)
+    sb.InputBegan:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+            dragging=true; upd(i.Position)
+        end
+    end)
+    sb.InputEnded:Connect(function(i)
+        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+            dragging=false
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
+            upd(i.Position)
+        end
+    end)
 end
 
 local function mkSec(t)
@@ -619,7 +630,6 @@ mkSlider("Orbit Radius",2,12,4,function(v) return v.."st" end,function(v) S.Orbi
 mkSlider("Orbit Speed",30,360,120,function(v) return v.."/s" end,function(v) S.OrbitSpeed=v end)
 mkSlider("Attack Rate",0.05,0.5,0.1,function(v) return v.."s" end,function(v) S.AttackRate=v end)
 mkSlider("Farm Delay",0.1,2,0.3,function(v) return v.."s" end,function(v) S.FarmDelay=v end)
-mkSlider("Hit Multiplier",1,20,1,function(v) return "x"..v end,function(v) S.HitMulti=v end)
 
 -- Speed Hack (CFrame-based, bypass server WalkSpeed reset)
 S.SpeedHack = false
@@ -744,12 +754,20 @@ rfb.Font=Enum.Font.GothamBold; rfb.BorderSizePixel=0; rfb.Parent=SF
 Instance.new("UICorner",rfb).CornerRadius=UDim.new(0,8)
 rfb.MouseButton1Click:Connect(refreshPlayers)
 
--- DRAG
+-- DRAG (Mouse + Touch support)
 local dragging,dStart,sPos=false,nil,nil
-TB.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true;dStart=i.Position;sPos=MF.Position end end)
-TB.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end end)
+TB.InputBegan:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+        dragging=true;dStart=i.Position;sPos=MF.Position
+    end
+end)
+TB.InputEnded:Connect(function(i)
+    if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then
+        dragging=false
+    end
+end)
 UIS.InputChanged:Connect(function(i)
-    if dragging and i.UserInputType==Enum.UserInputType.MouseMovement then
+    if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then
         local d=i.Position-dStart; MF.Position=UDim2.new(sPos.X.Scale,sPos.X.Offset+d.X,sPos.Y.Scale,sPos.Y.Offset+d.Y)
     end
 end)
