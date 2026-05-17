@@ -642,37 +642,40 @@ tpBase.MouseButton1Click:Connect(function()
     end
 end)
 
--- TP ke Boss HP 600
-local function findBoss600()
+-- TP ke Boss HP 700-1000 (prioritas HP tertinggi)
+local function findBoss()
+    local bestModel, bestRoot, bestHP = nil, nil, 0
     for _,obj in ipairs(WS:GetDescendants()) do
-        if obj:IsA("Humanoid") and obj.Health > 0 and obj.MaxHealth >= 550 and obj.MaxHealth <= 650 then
-            local m = obj.Parent
-            if m and m:IsA("Model") and m ~= Char then
-                local isPlayer = false
-                for _,p in ipairs(Players:GetPlayers()) do if p.Character==m then isPlayer=true; break end end
-                if not isPlayer and obj.WalkSpeed > 0 then
-                    local r = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
-                    if r then return m, r end
+        if obj:IsA("Humanoid") and obj.Health > 0 and obj.MaxHealth >= 700 and obj.MaxHealth <= 1000 then
+            if obj.MaxHealth > bestHP then
+                local m = obj.Parent
+                if m and m:IsA("Model") and m ~= Char then
+                    local isPlayer = false
+                    for _,p in ipairs(Players:GetPlayers()) do if p.Character==m then isPlayer=true; break end end
+                    if not isPlayer and obj.WalkSpeed > 0 then
+                        local r = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
+                        if r then bestModel=m; bestRoot=r; bestHP=obj.MaxHealth end
+                    end
                 end
             end
         end
     end
-    return nil, nil
+    return bestModel, bestRoot
 end
 
 local tpBoss=Instance.new("TextButton"); tpBoss.Size=UDim2.new(1,0,0,32); tpBoss.BackgroundColor3=Color3.fromRGB(60,15,15)
-tpBoss.Text="💀 TP ke Boss (HP 600)"; tpBoss.TextColor3=Color3.fromRGB(255,140,140); tpBoss.TextSize=12
+tpBoss.Text="💀 TP ke Boss (HP 700-1000)"; tpBoss.TextColor3=Color3.fromRGB(255,140,140); tpBoss.TextSize=12
 tpBoss.Font=Enum.Font.GothamBold; tpBoss.BorderSizePixel=0; tpBoss.Parent=SF
 Instance.new("UICorner",tpBoss).CornerRadius=UDim.new(0,8)
 Instance.new("UIStroke",tpBoss).Color=Color3.fromRGB(120,30,30)
 tpBoss.MouseButton1Click:Connect(function()
-    local boss, bossRoot = findBoss600()
+    local boss, bossRoot = findBoss()
     if boss and bossRoot then
         pcall(function() Root.CFrame = CFrame.new(bossRoot.Position + Vector3.new(0,3,0)) end)
         local h = boss:FindFirstChild("Humanoid")
         notify("TP","Boss: " .. boss.Name .. " | HP: " .. (h and tostring(math.floor(h.Health)).."/"..tostring(math.floor(h.MaxHealth)) or "?"))
     else
-        notify("TP","Boss HP 600 tidak ditemukan!")
+        notify("TP","Boss HP 700-1000 tidak ditemukan!")
     end
 end)
 
