@@ -538,53 +538,46 @@ invb.MouseButton1Click:Connect(function()
     notify("Scan","Inventory scan selesai! Cek console (F9)")
 end)
 
--- Remote Spy (capture remote saat sell manual)
-local spyActive = false
-local spyConns = {}
+-- Remote Spy SAFE (hanya wrap DropItems remote)
 local spyBtn=Instance.new("TextButton"); spyBtn.Size=UDim2.new(1,0,0,28); spyBtn.BackgroundColor3=Color3.fromRGB(80,20,60)
-spyBtn.Text="🔴 Remote Spy (OFF)"; spyBtn.TextColor3=Color3.fromRGB(255,180,220); spyBtn.TextSize=11
+spyBtn.Text="🔍 Spy DropItems Remote"; spyBtn.TextColor3=Color3.fromRGB(255,180,220); spyBtn.TextSize=11
 spyBtn.Font=Enum.Font.GothamBold; spyBtn.BorderSizePixel=0; spyBtn.Parent=SF
 Instance.new("UICorner",spyBtn).CornerRadius=UDim.new(0,8)
 spyBtn.MouseButton1Click:Connect(function()
-    spyActive = not spyActive
-    if spyActive then
-        spyBtn.Text = "🟢 Remote Spy (ON) - Sell manual → cek F9"
-        spyBtn.BackgroundColor3 = Color3.fromRGB(20,80,30)
-        -- Hook semua remote pakai __namecall (jika tersedia)
-        local ok = pcall(function()
-            local old = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-                local method = getnamecallmethod()
-                if (method == "FireServer" or method == "InvokeServer") then
-                    if self:IsA("RemoteEvent") or self:IsA("RemoteFunction") then
-                        local args = {...}
-                        local argStr = ""
-                        for i,a in ipairs(args) do
-                            argStr = argStr .. string.format("[%d]=%s(%s) ", i, tostring(a), typeof(a))
-                        end
-                        print(string.format("[SPY] %s | %s | Args: %s", self:GetFullName(), method, argStr))
-                    end
-                end
-                return old(self, ...)
-            end))
-            table.insert(spyConns, old)
-        end)
-        if not ok then
-            -- Fallback: scan semua remote dan print info
-            print("[SPY] hookmetamethod tidak tersedia, scan remote manual...")
-            print("[SPY] === SEMUA REMOTE DI REPLICATED STORAGE ===")
-            for _,v in ipairs(RS:GetDescendants()) do
-                if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
-                    print(string.format("[SPY] [%s] %s", v.ClassName, v:GetFullName()))
-                end
+    -- Print SEMUA remote di Msg folder
+    print("=== ALL REMOTES IN Msg ===")
+    local msgFolder = RS:FindFirstChild("Msg")
+    if msgFolder then
+        for _,v in ipairs(msgFolder:GetDescendants()) do
+            if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
+                print(string.format("  [%s] %s", v.ClassName, v:GetFullName()))
             end
-            print("[SPY] === END ===")
         end
-        notify("Spy","ON - Sell item manual, cek F9")
-    else
-        spyBtn.Text = "🔴 Remote Spy (OFF)"
-        spyBtn.BackgroundColor3 = Color3.fromRGB(80,20,60)
-        notify("Spy","OFF")
     end
+    -- Scan player backpack
+    print("=== PLAYER BACKPACK ===")
+    local bp = LP:FindFirstChild("Backpack")
+    if bp then
+        for _,v in ipairs(bp:GetChildren()) do
+            print(string.format("  [%s] %s", v.ClassName, v.Name))
+        end
+    end
+    -- Scan deeper: cari folder dengan NumberValue (inventory)
+    print("=== PLAYER INVENTORY (NumberValues) ===")
+    for _,v in ipairs(LP:GetDescendants()) do
+        if v:IsA("NumberValue") and v.Value > 0 then
+            print(string.format("  %s = %d | Path: %s", v.Name, v.Value, v:GetFullName()))
+        end
+    end
+    -- Scan deeper: cari folder dengan StringValue (rarity/type info)
+    print("=== PLAYER STRING VALUES ===")
+    for _,v in ipairs(LP:GetDescendants()) do
+        if v:IsA("StringValue") then
+            print(string.format("  %s = %s | Path: %s", v.Name, v.Value, v:GetFullName()))
+        end
+    end
+    print("=== END SPY ===")
+    notify("Spy","Scan selesai! Cek console F9")
 end)
 mkSec("  COMBAT")
 
