@@ -483,6 +483,61 @@ npb.MouseButton1Click:Connect(function()
     print("=== END ===")
 end)
 
+-- Scan Inventory (debug)
+local invb=Instance.new("TextButton"); invb.Size=UDim2.new(1,0,0,28); invb.BackgroundColor3=Color3.fromRGB(20,50,80)
+invb.Text="Scan Inventory + Sell Remote"; invb.TextColor3=Color3.fromRGB(180,220,255); invb.TextSize=11
+invb.Font=Enum.Font.GothamBold; invb.BorderSizePixel=0; invb.Parent=SF
+Instance.new("UICorner",invb).CornerRadius=UDim.new(0,8)
+invb.MouseButton1Click:Connect(function()
+    -- 1. Scan semua children di LocalPlayer
+    print("=== PLAYER DATA (LocalPlayer children) ===")
+    for _,v in ipairs(LP:GetChildren()) do
+        print(string.format("  [%s] %s | Children: %d", v.ClassName, v.Name, #v:GetChildren()))
+        -- Print sub-children (max 2 level)
+        for _,c in ipairs(v:GetChildren()) do
+            if c:IsA("Folder") or c:IsA("Configuration") then
+                print(string.format("    [%s] %s | Children: %d", c.ClassName, c.Name, #c:GetChildren()))
+                for _,cc in ipairs(c:GetChildren()) do
+                    print(string.format("      [%s] %s = %s", cc.ClassName, cc.Name, 
+                        cc:IsA("ValueBase") and tostring(cc.Value) or tostring(#cc:GetChildren()).." children"))
+                end
+            elseif c:IsA("ValueBase") then
+                print(string.format("    [%s] %s = %s", c.ClassName, c.Name, tostring(c.Value)))
+            else
+                print(string.format("    [%s] %s", c.ClassName, c.Name))
+            end
+        end
+    end
+    -- 2. Scan attributes di player
+    print("=== PLAYER ATTRIBUTES ===")
+    for k,v in pairs(LP:GetAttributes()) do
+        print(string.format("  %s = %s (%s)", k, tostring(v), typeof(v)))
+    end
+    -- 3. Scan ReplicatedStorage untuk data/inventory folder
+    print("=== REPLICATED STORAGE (inventory/data related) ===")
+    for _,v in ipairs(RS:GetChildren()) do
+        local n = v.Name:lower()
+        if n:find("data") or n:find("inventory") or n:find("item") or n:find("bag") or n:find("storage") or n:find("player") then
+            print(string.format("  [%s] %s | Children: %d", v.ClassName, v.Name, #v:GetChildren()))
+            for _,c in ipairs(v:GetChildren()) do
+                print(string.format("    [%s] %s", c.ClassName, c.Name))
+            end
+        end
+    end
+    -- 4. Scan sell-related remotes
+    print("=== SELL/SHOP REMOTES ===")
+    for _,v in ipairs(RS:GetDescendants()) do
+        if (v:IsA("RemoteEvent") or v:IsA("RemoteFunction")) then
+            local n = v.Name:lower()
+            if n:find("sell") or n:find("shop") or n:find("trade") or n:find("buy") or n:find("item") or n:find("inventory") or n:find("bag") or n:find("drop") or n:find("discard") or n:find("destroy") then
+                print(string.format("  [%s] %s | Path: %s", v.ClassName, v.Name, v:GetFullName()))
+            end
+        end
+    end
+    print("=== END INVENTORY SCAN ===")
+    notify("Scan","Inventory scan selesai! Cek console (F9)")
+end)
+
 mkSec("  COMBAT")
 
 mkToggle("Auto Farm","Orbit + serang mob terdekat dalam range",function(on)
