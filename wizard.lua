@@ -538,6 +538,39 @@ invb.MouseButton1Click:Connect(function()
     notify("Scan","Inventory scan selesai! Cek console (F9)")
 end)
 
+-- Hook __namecall (capture remote saat sell manual)
+local hookActive = false
+local oldNamecall = nil
+local hookBtn=Instance.new("TextButton"); hookBtn.Size=UDim2.new(1,0,0,28); hookBtn.BackgroundColor3=Color3.fromRGB(80,20,60)
+hookBtn.Text="🔴 Hook Remote (OFF)"; hookBtn.TextColor3=Color3.fromRGB(255,180,220); hookBtn.TextSize=11
+hookBtn.Font=Enum.Font.GothamBold; hookBtn.BorderSizePixel=0; hookBtn.Parent=SF
+Instance.new("UICorner",hookBtn).CornerRadius=UDim.new(0,8)
+hookBtn.MouseButton1Click:Connect(function()
+    hookActive = not hookActive
+    if hookActive then
+        hookBtn.Text = "🟢 Hook Remote (ON) - Sell manual lalu cek F9"
+        hookBtn.BackgroundColor3 = Color3.fromRGB(20,80,30)
+        if not oldNamecall then
+            oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+                local method = getnamecallmethod()
+                if (method == "FireServer" or method == "InvokeServer") and (self:IsA("RemoteEvent") or self:IsA("RemoteFunction")) then
+                    local args = {...}
+                    local argStr = ""
+                    for i,a in ipairs(args) do
+                        argStr = argStr .. string.format("[%d]=%s(%s) ", i, tostring(a), typeof(a))
+                    end
+                    print(string.format("[HOOK] %s:%s | %s | Args: %s", self.ClassName, method, self:GetFullName(), argStr))
+                end
+                return oldNamecall(self, ...)
+            end))
+        end
+        notify("Hook","ON - Sell item manual, lalu cek console F9")
+    else
+        hookBtn.Text = "🔴 Hook Remote (OFF)"
+        hookBtn.BackgroundColor3 = Color3.fromRGB(80,20,60)
+        notify("Hook","OFF")
+    end
+end)
 mkSec("  COMBAT")
 
 mkToggle("Auto Farm","Orbit + serang mob terdekat dalam range",function(on)
