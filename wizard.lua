@@ -307,13 +307,16 @@ local function startAutoFarm()
         while S.AutoFarm do
             local mobs=scanMobs()
             if #mobs==0 then stopOrbit(); task.wait(1) else
-                for _,m in ipairs(mobs) do
-                    if not S.AutoFarm then stopOrbit(); break end
-                    if m.model and m.model.Parent then
-                        local h=m.model:FindFirstChild("Humanoid")
-                        if h and h.Health>0 then pcall(function() orbitKill(m.model) end) end
-                    end; task.wait(S.FarmDelay)
-                end
+                -- Ambil mob HP tertinggi (index 1 karena sudah sorted desc)
+                local m = mobs[1]
+                if m.model and m.model.Parent then
+                    local h=m.model:FindFirstChild("Humanoid")
+                    if h and h.Health>0 then
+                        print(string.format("[Farm] Target: %s | MaxHP: %s | HP: %s/%s",
+                            m.model.Name, tostring(m.hp), tostring(math.floor(h.Health)), tostring(math.floor(h.MaxHealth))))
+                        pcall(function() orbitKill(m.model) end)
+                    end
+                end; task.wait(S.FarmDelay)
             end; task.wait(0.2)
         end; stopOrbit()
     end)
