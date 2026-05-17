@@ -553,6 +553,48 @@ tpBase.MouseButton1Click:Connect(function()
     end
 end)
 
+-- TP ke Boss/Elite
+local BOSS_KEYWORDS = {"elite","boss","mutant","champion","king","queen","giant","alpha","lord","dragon","demon","guardian"}
+local function findBoss()
+    local folders = {"Monster","Enemies","Mobs","Monsters","Enemy","Mob","Boss","Creature"}
+    for _,fn in ipairs(folders) do
+        local f = WS:FindFirstChild(fn)
+        if f then
+            for _,m in ipairs(f:GetChildren()) do
+                if m:IsA("Model") then
+                    local n = m.Name:lower()
+                    for _,kw in ipairs(BOSS_KEYWORDS) do
+                        if n:find(kw,1,true) then
+                            local h = m:FindFirstChild("Humanoid")
+                            if h and h.Health > 0 then
+                                local r = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
+                                if r then return m, r end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nil, nil
+end
+
+local tpBoss=Instance.new("TextButton"); tpBoss.Size=UDim2.new(1,0,0,32); tpBoss.BackgroundColor3=Color3.fromRGB(60,15,15)
+tpBoss.Text="💀 TP ke Boss/Elite"; tpBoss.TextColor3=Color3.fromRGB(255,140,140); tpBoss.TextSize=12
+tpBoss.Font=Enum.Font.GothamBold; tpBoss.BorderSizePixel=0; tpBoss.Parent=SF
+Instance.new("UICorner",tpBoss).CornerRadius=UDim.new(0,8)
+Instance.new("UIStroke",tpBoss).Color=Color3.fromRGB(120,30,30)
+tpBoss.MouseButton1Click:Connect(function()
+    local boss, bossRoot = findBoss()
+    if boss and bossRoot then
+        pcall(function() Root.CFrame = CFrame.new(bossRoot.Position + Vector3.new(0,3,0)) end)
+        local h = boss:FindFirstChild("Humanoid")
+        notify("TP","Boss: " .. boss.Name .. " | HP: " .. (h and tostring(math.floor(h.Health)) or "?"))
+    else
+        notify("TP","Boss/Elite tidak ditemukan!")
+    end
+end)
+
 local PLF=Instance.new("Frame"); PLF.Size=UDim2.new(1,0,0,0); PLF.BackgroundTransparency=1
 PLF.AutomaticSize=Enum.AutomaticSize.Y; PLF.Parent=SF
 Instance.new("UIListLayout",PLF).Padding=UDim.new(0,4)
