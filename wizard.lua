@@ -18,9 +18,9 @@ local Root = Char:WaitForChild("HumanoidRootPart")
 
 local S = {
     AutoFarm=false, AutoSkill=false,
-    AutoRespawn=false, AutoSell=false, FarmRange=150, FarmDelay=0.3,
+    AutoRespawn=false, FarmRange=150, FarmDelay=0.3,
     OrbitRadius=4, OrbitSpeed=120, AttackRate=0.1,
-    FarmOrigin=nil, LastPos=nil, SellInterval=30,
+    FarmOrigin=nil, LastPos=nil,
 }
 
 -- Save position setiap 1 detik
@@ -468,307 +468,58 @@ end)
 mkSec("  SELL")
 
 -- ========================
--- AUTO SELL SYSTEM
+-- SELL: Teleport ke Lombart saja
 -- ========================
-local function findGUIButton(parent, textMatch)
-    for _,v in ipairs(parent:GetDescendants()) do
-        if (v:IsA("TextButton") or v:IsA("ImageButton")) and v.Visible ~= false then
-            if v:IsA("TextButton") and v.Text:lower():find(textMatch:lower(),1,true) then
-                return v
-            end
-            -- Cek child TextLabel di dalam button
-            for _,child in ipairs(v:GetChildren()) do
-                if child:IsA("TextLabel") and child.Text:lower():find(textMatch:lower(),1,true) then
-                    return v
-                end
-            end
-        end
-    end
-    return nil
-end
-
-local function findGUIText(parent, textMatch)
-    for _,v in ipairs(parent:GetDescendants()) do
-        if (v:IsA("TextButton") or v:IsA("TextLabel")) and v.Visible ~= false then
-            if v.Text:lower():find(textMatch:lower(),1,true) then
-                return v
-            end
-        end
-    end
-    return nil
-end
-
-local function clickButton(btn)
-    if not btn then return false end
-    -- HANYA pakai getconnections (tidak gerakkan mouse sama sekali)
-    pcall(function()
-        if btn:IsA("TextButton") or btn:IsA("ImageButton") then
-            for _,conn in ipairs(getconnections(btn.MouseButton1Click)) do conn:Fire() end
-        end
-    end)
-    pcall(function()
-        if btn:IsA("TextButton") or btn:IsA("ImageButton") then
-            for _,conn in ipairs(getconnections(btn.Activated)) do conn:Fire() end
-        end
-    end)
-    return true
-end
-
 local function findLombart()
-    -- Nama NPC merchant (English + Chinese)
     local MERCHANT_NAMES = {
         "lombart","merchant","general merchant","seller","shop","vendor","trader",
         "隆巴特","商人","店主","杂货","杂货商","出售","卖","交易","贸易商",
     }
-    -- 1. Cari berdasarkan nama
     for _,v in ipairs(WS:GetDescendants()) do
         if v:IsA("Model") then
             local n = v.Name:lower()
             for _,keyword in ipairs(MERCHANT_NAMES) do
                 if n:find(keyword,1,true) then
                     local r = v:FindFirstChild("HumanoidRootPart") or v:FindFirstChild("Torso") or v:FindFirstChild("Head") or v.PrimaryPart
-                    if r then
-                        print("[AutoSell] Found merchant: " .. v.Name .. " (" .. v:GetFullName() .. ")")
-                        return v, r
-                    end
+                    if r then return v, r end
                 end
             end
         end
     end
-    -- 2. Fallback: cari model NPC yang punya ProximityPrompt (bukan musuh)
-    for _,v in ipairs(WS:GetDescendants()) do
-        if v:IsA("ProximityPrompt") then
-            local model = v.Parent
-            while model and not model:IsA("Model") do model = model.Parent end
-            if model and model:IsA("Model") and model ~= Char then
-                local h = model:FindFirstChild("Humanoid")
-                if h and h.WalkSpeed == 0 then -- NPC statis = bukan musuh
-                    local r = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Torso") or model:FindFirstChild("Head") or model.PrimaryPart
-                    if r then
-                        print("[AutoSell] Found NPC with ProximityPrompt: " .. model.Name .. " (" .. model:GetFullName() .. ")")
-                        return model, r
-                    end
-                end
-            end
-        end
-    end
-    -- 3. Print SEMUA model + prompt untuk debug
-    print("[AutoSell] === SCAN ALL MODELS (non-player) ===")
-    for _,v in ipairs(WS:GetDescendants()) do
-        if v:IsA("Model") and v ~= Char then
-            -- Skip player characters
-            local isPlayer = false
-            for _,p in ipairs(Players:GetPlayers()) do if p.Character==v then isPlayer=true; break end end
-            if not isPlayer then
-                local h = v:FindFirstChild("Humanoid")
-                local hasPrompt = v:FindFirstChildWhichIsA("ProximityPrompt", true)
-                local hasClick = v:FindFirstChildWhichIsA("ClickDetector", true)
-                if h or hasPrompt or hasClick then
-                    print(string.format("[AutoSell]   %s | HP:%s SPD:%s Prompt:%s Click:%s | %s",
-                        v.Name,
-                        h and tostring(h.Health) or "none",
-                        h and tostring(h.WalkSpeed) or "none",
-                        hasPrompt and "YES" or "no",
-                        hasClick and "YES" or "no",
-                        v:GetFullName()
-                    ))
-                end
-            end
-        end
-    end
-    -- Juga scan ProximityPrompt yang bukan di dalam Model
-    print("[AutoSell] === ALL PROXIMITY PROMPTS ===")
-    for _,v in ipairs(WS:GetDescendants()) do
-        if v:IsA("ProximityPrompt") then
-            print("[AutoSell]   Prompt: " .. v:GetFullName() .. " | Action: " .. tostring(v.ActionText) .. " | Object: " .. tostring(v.ObjectText))
-        end
-    end
-    print("[AutoSell] === END SCAN ===")
     return nil, nil
 end
 
-local function triggerNPCInteract(npcModel)
-    -- Cari ProximityPrompt
-    for _,v in ipairs(npcModel:GetDescendants()) do
-        if v:IsA("ProximityPrompt") then
-            pcall(function() fireproximityprompt(v) end)
-            return true
-        end
-    end
-    -- Cari ClickDetector
-    for _,v in ipairs(npcModel:GetDescendants()) do
-        if v:IsA("ClickDetector") then
-            pcall(function() fireclickdetector(v) end)
-            return true
-        end
-    end
-    -- Fallback: coba touch
-    local r = npcModel:FindFirstChild("HumanoidRootPart") or npcModel:FindFirstChild("Torso")
-    if r and Root then
-        pcall(function() firetouchinterest(Root, r, 0); task.wait(0.1); firetouchinterest(Root, r, 1) end)
-    end
-    return true
-end
-
-local function doSellCycle()
-    local PG = LP:FindFirstChild("PlayerGui")
-    if not PG then return false end
-
-    -- 1. Cari NPC Lombart
+-- Tombol TP ke Lombart
+local tpSell=Instance.new("TextButton"); tpSell.Size=UDim2.new(1,0,0,32); tpSell.BackgroundColor3=Color3.fromRGB(60,40,20)
+tpSell.Text="💰 TP ke Lombart (Sell)"; tpSell.TextColor3=Color3.fromRGB(255,220,140); tpSell.TextSize=12
+tpSell.Font=Enum.Font.GothamBold; tpSell.BorderSizePixel=0; tpSell.Parent=SF
+Instance.new("UICorner",tpSell).CornerRadius=UDim.new(0,8)
+Instance.new("UIStroke",tpSell).Color=Color3.fromRGB(120,80,30)
+tpSell.MouseButton1Click:Connect(function()
     local npc, npcRoot = findLombart()
-    if not npc then
-        print("[AutoSell] Lombart tidak ditemukan!")
-        notify("Auto Sell","Lombart tidak ditemukan!")
-        return false
-    end
-
-    -- 2. Simpan posisi farming lalu teleport ke Lombart
-    local farmPos = Root.Position
-    pcall(function() Root.CFrame = CFrame.new(npcRoot.Position + Vector3.new(0,0,3)) end)
-    task.wait(0.5)
-
-    -- 3. Interact dengan NPC
-    triggerNPCInteract(npc)
-    task.wait(1)
-
-    -- 4. Cari dan klik dialog "I have goods to sell" atau opsi 1
-    local found = false
-    for attempt=1,5 do
-        for _,gui in ipairs(PG:GetDescendants()) do
-            if (gui:IsA("TextButton") or gui:IsA("TextLabel")) and gui.Visible ~= false then
-                local txt = gui.Text:lower()
-                if txt:find("goods to sell",1,true) or txt:find("have goods",1,true) or txt:find("1.i have",1,true) or txt:find("1. i have",1,true) then
-                    clickButton(gui)
-                    found = true
-                    print("[AutoSell] Klik dialog: " .. gui.Text)
-                    break
-                end
-            end
-        end
-        if found then break end
-        task.wait(0.5)
-    end
-
-    if not found then
-        -- Coba klik tombol pertama yang muncul di dialog
-        for _,gui in ipairs(PG:GetDescendants()) do
-            if gui:IsA("TextButton") and gui.Visible ~= false then
-                local txt = gui.Text
-                if txt:find("1",1,true) and #txt < 50 then
-                    clickButton(gui)
-                    print("[AutoSell] Klik dialog fallback: " .. txt)
-                    found = true
-                    break
-                end
-            end
-        end
-    end
-
-    task.wait(1.5)
-
-    -- 5. Klik "Multi Select" di Sell Shop
-    local multiBtn = nil
-    for attempt=1,5 do
-        multiBtn = findGUIButton(PG, "Multi Select")
-        if multiBtn then break end
-        task.wait(0.5)
-    end
-    if multiBtn then
-        clickButton(multiBtn)
-        print("[AutoSell] Klik Multi Select")
+    if npc and npcRoot then
+        S.LastPos = Root.Position -- simpan posisi sebelum TP
+        pcall(function() Root.CFrame = CFrame.new(npcRoot.Position + Vector3.new(0,0,3)) end)
+        notify("TP","Teleport ke Lombart!")
     else
-        print("[AutoSell] Multi Select tidak ditemukan, coba select semua item...")
-        -- Fallback: klik semua item button yang ada di sell shop
-        for _,gui in ipairs(PG:GetDescendants()) do
-            if gui:IsA("ImageButton") and gui.Visible ~= false and gui.AbsoluteSize.X > 30 and gui.AbsoluteSize.X < 120 then
-                pcall(function() clickButton(gui) end)
-                task.wait(0.05)
-            end
-        end
+        notify("TP","Lombart tidak ditemukan!")
     end
+end)
 
-    task.wait(0.5)
-
-    -- 6. Klik "Confirm Sell"
-    local confirmBtn = nil
-    for attempt=1,5 do
-        confirmBtn = findGUIButton(PG, "Confirm Sell")
-        if not confirmBtn then confirmBtn = findGUIButton(PG, "Confirm") end
-        if confirmBtn then break end
-        task.wait(0.5)
-    end
-    if confirmBtn then
-        clickButton(confirmBtn)
-        print("[AutoSell] Klik Confirm Sell")
-        notify("Auto Sell","Item terjual!")
+-- Tombol Balik dari Lombart
+local tpBack=Instance.new("TextButton"); tpBack.Size=UDim2.new(1,0,0,32); tpBack.BackgroundColor3=Color3.fromRGB(20,40,60)
+tpBack.Text="↩ Balik ke Posisi Farm"; tpBack.TextColor3=Color3.fromRGB(140,200,255); tpBack.TextSize=12
+tpBack.Font=Enum.Font.GothamBold; tpBack.BorderSizePixel=0; tpBack.Parent=SF
+Instance.new("UICorner",tpBack).CornerRadius=UDim.new(0,8)
+Instance.new("UIStroke",tpBack).Color=Color3.fromRGB(30,70,120)
+tpBack.MouseButton1Click:Connect(function()
+    if S.LastPos then
+        pcall(function() Root.CFrame = CFrame.new(S.LastPos + Vector3.new(0,3,0)) end)
+        notify("TP","Balik ke posisi farm!")
     else
-        print("[AutoSell] Confirm Sell tidak ditemukan!")
-        notify("Auto Sell","Confirm Sell tidak ditemukan!")
+        notify("TP","Posisi farm belum tersimpan!")
     end
-
-    task.wait(1)
-
-    -- 7. Tutup GUI sell (tekan X atau Escape)
-    local closeBtn = findGUIButton(PG, "X")
-    if not closeBtn then closeBtn = findGUIText(PG, "✕") end
-    if not closeBtn then closeBtn = findGUIText(PG, "✖") end
-    if closeBtn then clickButton(closeBtn) end
-    pcall(function() pressKey(Enum.KeyCode.Escape) end)
-
-    task.wait(0.5)
-
-    -- 8. Teleport balik ke posisi farming
-    pcall(function() Root.CFrame = CFrame.new(farmPos + Vector3.new(0,3,0)) end)
-    print("[AutoSell] Selesai, balik ke posisi farming")
-    return true
-end
-
-local function startAutoSell()
-    task.spawn(function()
-        while S.AutoSell do
-            local ok = pcall(doSellCycle)
-            if not ok then print("[AutoSell] Error saat sell cycle") end
-            -- Tunggu interval sebelum sell lagi
-            local waited = 0
-            while S.AutoSell and waited < S.SellInterval do
-                task.wait(1)
-                waited = waited + 1
-            end
-        end
-        print("[AutoSell] Stopped")
-    end)
-end
-
-mkToggle("Auto Sell","TP ke Lombart → Multi Select → Confirm Sell",function(on)
-    S.AutoSell=on
-    if on then startAutoSell(); notify("Auto Sell","ON - Interval: "..S.SellInterval.."s")
-    else notify("Auto Sell","OFF") end
 end)
-
--- Tombol Sell Sekali (manual)
-local sellOnce=Instance.new("TextButton"); sellOnce.Size=UDim2.new(1,0,0,30); sellOnce.BackgroundColor3=Color3.fromRGB(60,40,20)
-sellOnce.Text="💰 Sell Sekarang (1x)"; sellOnce.TextColor3=Color3.fromRGB(255,220,140); sellOnce.TextSize=12
-sellOnce.Font=Enum.Font.GothamBold; sellOnce.BorderSizePixel=0; sellOnce.Parent=SF
-Instance.new("UICorner",sellOnce).CornerRadius=UDim.new(0,8)
-Instance.new("UIStroke",sellOnce).Color=Color3.fromRGB(120,80,30)
-sellOnce.MouseButton1Click:Connect(function()
-    task.spawn(function()
-        notify("Sell","Mulai sell...")
-        doSellCycle()
-    end)
-end)
-
--- Tombol Scan Merchant (debug)
-local scanMerch=Instance.new("TextButton"); scanMerch.Size=UDim2.new(1,0,0,28); scanMerch.BackgroundColor3=Color3.fromRGB(50,30,60)
-scanMerch.Text="🔍 Scan Merchant NPC"; scanMerch.TextColor3=Color3.fromRGB(200,180,255); scanMerch.TextSize=11
-scanMerch.Font=Enum.Font.GothamBold; scanMerch.BorderSizePixel=0; scanMerch.Parent=SF
-Instance.new("UICorner",scanMerch).CornerRadius=UDim.new(0,8)
-scanMerch.MouseButton1Click:Connect(function()
-    notify("Scan","Scanning NPC... cek console (F9)")
-    findLombart() -- ini akan print semua NPC ke console
-end)
-
-mkSlider("Sell Interval",10,120,30,function(v) return v.."s" end,function(v) S.SellInterval=v end)
 
 mkSec("  SETTINGS")
 mkSlider("Farm Range",0,500,150,function(v) return v==0 and "ALL" or v.."st" end,function(v)
