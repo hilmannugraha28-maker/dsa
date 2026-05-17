@@ -22,6 +22,7 @@ local S = {
     OrbitRadius=4, OrbitSpeed=120, AttackRate=0.1,
     FarmOrigin=nil, LastPos=nil,
     TargetHPMin=120, TargetHPMax=1000, -- hanya serang mob MaxHP 120-1000
+    HitMulti=1, -- fire attack X kali per hit
 }
 
 -- Save position history (rolling 1 menit)
@@ -302,7 +303,7 @@ local function orbitKill(enemy)
         local now=tick()
         if now-lastAtk>=S.AttackRate then
             lastAtk=now
-            pcall(function() fireAttack(enemy) end)
+            for _=1,S.HitMulti do pcall(function() fireAttack(enemy) end) end
             if S.AutoSkill then pressKey(Enum.KeyCode.R); pressKey(Enum.KeyCode.E) end
         end
     end)
@@ -618,6 +619,7 @@ mkSlider("Orbit Radius",2,12,4,function(v) return v.."st" end,function(v) S.Orbi
 mkSlider("Orbit Speed",30,360,120,function(v) return v.."/s" end,function(v) S.OrbitSpeed=v end)
 mkSlider("Attack Rate",0.05,0.5,0.1,function(v) return v.."s" end,function(v) S.AttackRate=v end)
 mkSlider("Farm Delay",0.1,2,0.3,function(v) return v.."s" end,function(v) S.FarmDelay=v end)
+mkSlider("Hit Multiplier",1,20,1,function(v) return "x"..v end,function(v) S.HitMulti=v end)
 
 -- Speed Hack (CFrame-based, bypass server WalkSpeed reset)
 S.SpeedHack = false
