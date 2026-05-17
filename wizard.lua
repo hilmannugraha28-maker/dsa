@@ -553,30 +553,27 @@ tpBase.MouseButton1Click:Connect(function()
     end
 end)
 
--- TP ke Boss/Elite
-local BOSS_KEYWORDS = {"elite","boss","mutant","champion","king","queen","giant","alpha","lord","dragon","demon","guardian"}
+-- TP ke Boss/Elite (cari monster HP tertinggi)
 local function findBoss()
+    local bestModel, bestRoot, bestHP = nil, nil, 0
     local folders = {"Monster","Enemies","Mobs","Monsters","Enemy","Mob","Boss","Creature"}
     for _,fn in ipairs(folders) do
         local f = WS:FindFirstChild(fn)
         if f then
             for _,m in ipairs(f:GetChildren()) do
-                if m:IsA("Model") then
-                    local n = m.Name:lower()
-                    for _,kw in ipairs(BOSS_KEYWORDS) do
-                        if n:find(kw,1,true) then
-                            local h = m:FindFirstChild("Humanoid")
-                            if h and h.Health > 0 then
-                                local r = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
-                                if r then return m, r end
-                            end
+                if m:IsA("Model") and isEnemy(m) then
+                    local h = m:FindFirstChild("Humanoid")
+                    if h and h.Health > 0 and h.MaxHealth > bestHP then
+                        local r = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
+                        if r then
+                            bestModel = m; bestRoot = r; bestHP = h.MaxHealth
                         end
                     end
                 end
             end
         end
     end
-    return nil, nil
+    return bestModel, bestRoot
 end
 
 local tpBoss=Instance.new("TextButton"); tpBoss.Size=UDim2.new(1,0,0,32); tpBoss.BackgroundColor3=Color3.fromRGB(60,15,15)
