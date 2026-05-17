@@ -119,19 +119,33 @@ end
 
 local function scanMobs()
     local mobs,seen = {},{}
-    -- HANYA scan folder Monster (tempat musuh sesungguhnya)
-    local folders = {"Monster","Enemies","Mobs","Monsters","Enemy","Mob","Boss","Creature"}
-    for _,fn in ipairs(folders) do
-        local f = WS:FindFirstChild(fn)
-        if f then for _,m in ipairs(f:GetChildren()) do
-            if m:IsA("Model") and not seen[m] and isEnemy(m) then
-                local r = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
-                if r then table.insert(mobs,{model=m,root=r,dist=(Root.Position-r.Position).Magnitude}); seen[m]=true end
+    -- Scan SEMUA Humanoid di workspace (tidak terbatas folder tertentu)
+    for _,obj in ipairs(WS:GetDescendants()) do
+        if obj:IsA("Humanoid") and obj.Health > 0 and obj.MaxHealth > 0 and obj.MaxHealth ~= math.huge then
+            local m = obj.Parent
+            if m and m:IsA("Model") and not seen[m] and m ~= Char then
+                -- Skip player characters
+                local isPlayer = false
+                for _,p in ipairs(Players:GetPlayers()) do if p.Character==m then isPlayer=true; break end end
+                -- Skip NPC statis (WalkSpeed=0)
+                if not isPlayer and obj.WalkSpeed > 0 then
+                    -- Blacklist check
+                    local n = m.Name:lower()
+                    local blocked = false
+                    for _,kw in ipairs(BLACKLIST) do if n:find(kw,1,true) then blocked=true; break end end
+                    if not blocked and #m.Name > 1 then
+                        local r = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
+                        if r then
+                            table.insert(mobs,{model=m,root=r,hp=obj.MaxHealth,dist=(Root.Position-r.Position).Magnitude})
+                            seen[m]=true
+                        end
+                    end
+                end
             end
-        end end
+        end
     end
-    -- TIDAK ada fallback scan seluruh Workspace (supaya tidak target mushroom/bird/dll)
-    table.sort(mobs,function(a,b) return a.dist<b.dist end)
+    -- Sort: HP tertinggi duluan (boss/elite prioritas)
+    table.sort(mobs,function(a,b) return a.hp > b.hp end)
     if S.FarmRange>0 and S.FarmOrigin then
         local f={}
         for _,m in ipairs(mobs) do if (S.FarmOrigin-m.root.Position).Magnitude<=S.FarmRange then table.insert(f,m) end end
