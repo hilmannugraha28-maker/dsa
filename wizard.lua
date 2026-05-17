@@ -21,7 +21,7 @@ local S = {
     AutoRespawn=false, FarmRange=150, FarmDelay=0.3,
     OrbitRadius=4, OrbitSpeed=120, AttackRate=0.1,
     FarmOrigin=nil, LastPos=nil,
-    TargetHP={100, 120}, -- hanya serang mob dengan MaxHealth ini
+    TargetHPMin=120, TargetHPMax=250, -- hanya serang mob MaxHP 120-250
 }
 
 -- Save position history (rolling 1 menit)
@@ -142,15 +142,8 @@ local function scanMobs()
                     local blocked = false
                     for _,kw in ipairs(BLACKLIST) do if n:find(kw,1,true) then blocked=true; break end end
                     if not blocked and #m.Name > 1 then
-                        -- Filter HP: hanya target mob dengan MaxHealth yang ada di list
-                        local hpMatch = false
-                        if #S.TargetHP == 0 then
-                            hpMatch = true -- kosong = semua HP
-                        else
-                            for _,thp in ipairs(S.TargetHP) do
-                                if math.floor(obj.MaxHealth) == thp then hpMatch=true; break end
-                            end
-                        end
+                        -- Filter HP: hanya target mob dalam range
+                        local hpMatch = (obj.MaxHealth >= S.TargetHPMin and obj.MaxHealth <= S.TargetHPMax)
                         if hpMatch then
                         local r = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
                         if r then
