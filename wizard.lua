@@ -21,7 +21,7 @@ local S = {
     AutoRespawn=false, FarmRange=150, FarmDelay=0.3,
     OrbitRadius=4, OrbitSpeed=120, AttackRate=0.1,
     FarmOrigin=nil, LastPos=nil,
-    TargetHPMin=120, TargetHPMax=300, -- hanya serang mob MaxHP 120-300
+    TargetHPMin=120, TargetHPMax=500, -- hanya serang mob MaxHP 120-500
 }
 
 -- Save position history (rolling 1 menit)
@@ -642,11 +642,11 @@ tpBase.MouseButton1Click:Connect(function()
     end
 end)
 
--- TP ke Boss HP 1000-100000 (prioritas HP tertinggi)
+-- TP ke Boss HP 10K-1B (prioritas HP tertinggi)
 local function findBoss()
     local bestModel, bestRoot, bestHP = nil, nil, 0
     for _,obj in ipairs(WS:GetDescendants()) do
-        if obj:IsA("Humanoid") and obj.Health > 0 and obj.MaxHealth >= 1000 and obj.MaxHealth <= 100000 then
+        if obj:IsA("Humanoid") and obj.Health > 0 and obj.MaxHealth >= 10000 and obj.MaxHealth <= 1000000000 then
             if obj.MaxHealth > bestHP then
                 local m = obj.Parent
                 if m and m:IsA("Model") and m ~= Char then
@@ -664,7 +664,7 @@ local function findBoss()
 end
 
 local tpBoss=Instance.new("TextButton"); tpBoss.Size=UDim2.new(1,0,0,32); tpBoss.BackgroundColor3=Color3.fromRGB(60,15,15)
-tpBoss.Text="💀 TP ke Boss (HP 1K-100K)"; tpBoss.TextColor3=Color3.fromRGB(255,140,140); tpBoss.TextSize=12
+tpBoss.Text="💀 TP ke Boss (HP 10K+)"; tpBoss.TextColor3=Color3.fromRGB(255,140,140); tpBoss.TextSize=12
 tpBoss.Font=Enum.Font.GothamBold; tpBoss.BorderSizePixel=0; tpBoss.Parent=SF
 Instance.new("UICorner",tpBoss).CornerRadius=UDim.new(0,8)
 Instance.new("UIStroke",tpBoss).Color=Color3.fromRGB(120,30,30)
@@ -675,7 +675,7 @@ tpBoss.MouseButton1Click:Connect(function()
         local h = boss:FindFirstChild("Humanoid")
         notify("TP","Boss: " .. boss.Name .. " | HP: " .. (h and tostring(math.floor(h.Health)).."/"..tostring(math.floor(h.MaxHealth)) or "?"))
     else
-        notify("TP","Boss HP 1K-100K tidak ditemukan!")
+        notify("TP","Boss HP 10K+ tidak ditemukan!")
     end
 end)
 
