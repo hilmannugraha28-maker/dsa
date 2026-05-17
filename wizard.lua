@@ -500,21 +500,16 @@ end
 
 local function clickButton(btn)
     if not btn then return false end
-    -- Metode 1: getconnections (tidak gerakkan mouse)
+    -- HANYA pakai getconnections (tidak gerakkan mouse sama sekali)
     pcall(function()
         if btn:IsA("TextButton") or btn:IsA("ImageButton") then
             for _,conn in ipairs(getconnections(btn.MouseButton1Click)) do conn:Fire() end
         end
     end)
-    -- Metode 2: Activated event
     pcall(function()
         if btn:IsA("TextButton") or btn:IsA("ImageButton") then
             for _,conn in ipairs(getconnections(btn.Activated)) do conn:Fire() end
         end
-    end)
-    -- Metode 3: fireclick (tidak pakai VIM, tidak gerakkan mouse)
-    pcall(function()
-        if fireclick then fireclick(btn) end
     end)
     return true
 end
