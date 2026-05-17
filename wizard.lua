@@ -619,6 +619,33 @@ mkSlider("Orbit Speed",30,360,120,function(v) return v.."/s" end,function(v) S.O
 mkSlider("Attack Rate",0.05,0.5,0.1,function(v) return v.."s" end,function(v) S.AttackRate=v end)
 mkSlider("Farm Delay",0.1,2,0.3,function(v) return v.."s" end,function(v) S.FarmDelay=v end)
 
+-- Speed Hack (CFrame-based, bypass server WalkSpeed reset)
+S.SpeedHack = false
+S.SpeedValue = 2
+local speedConn = nil
+
+mkToggle("Speed Hack","Boost movement (CFrame)",function(on)
+    S.SpeedHack = on
+    if on then
+        if speedConn then speedConn:Disconnect() end
+        speedConn = RunService.Heartbeat:Connect(function()
+            if not S.SpeedHack then return end
+            if not Root or not Root.Parent or not Hum or Hum.Health <= 0 then return end
+            local moveDir = Hum.MoveDirection
+            if moveDir.Magnitude > 0 then
+                Root.CFrame = Root.CFrame + (moveDir * S.SpeedValue)
+            end
+        end)
+        notify("Speed","ON - x"..S.SpeedValue)
+    else
+        if speedConn then speedConn:Disconnect(); speedConn=nil end
+        notify("Speed","OFF")
+    end
+end)
+mkSlider("Speed Boost",1,10,2,function(v) return "x"..v end,function(v)
+    S.SpeedValue=v
+end)
+
 -- TELEPORT PLAYER
 mkSec("  TELEPORT")
 
