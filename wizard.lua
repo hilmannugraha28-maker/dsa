@@ -23,12 +23,17 @@ local S = {
     FarmOrigin=nil, LastPos=nil,
 }
 
--- Save position setiap 1 detik
+-- Save position history (rolling 1 menit)
+local posHistory = {}
+local POS_INTERVAL = 5 -- simpan setiap 5 detik
+local POS_MAX = 12 -- 12 x 5 detik = 60 detik (1 menit)
 task.spawn(function()
     while true do
-        task.wait(1)
+        task.wait(POS_INTERVAL)
         if Root and Root.Parent and Hum and Hum.Health > 0 then
-            S.LastPos = Root.Position
+            table.insert(posHistory, Root.Position)
+            if #posHistory > POS_MAX then table.remove(posHistory, 1) end
+            S.LastPos = posHistory[1] -- posisi paling lama (1 menit lalu)
         end
     end
 end)
@@ -553,21 +558,21 @@ tpBase.MouseButton1Click:Connect(function()
     end
 end)
 
--- TP ke Boss/Elite (cari monster HP tertinggi)
+-- TP ke Boss/Elite (cari monster HP tertinggi di seluruh workspace)
 local function findBoss()
     local bestModel, bestRoot, bestHP = nil, nil, 0
-    local folders = {"Monster","Enemies","Mobs","Monsters","Enemy","Mob","Boss","Creature"}
-    for _,fn in ipairs(folders) do
-        local f = WS:FindFirstChild(fn)
-        if f then
-            for _,m in ipairs(f:GetChildren()) do
-                if m:IsA("Model") and isEnemy(m) then
-                    local h = m:FindFirstChild("Humanoid")
-                    if h and h.Health > 0 and h.MaxHealth > bestHP then
-                        local r = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
-                        if r then
-                            bestModel = m; bestRoot = r; bestHP = h.MaxHealth
-                        end
+    -- Scan SEMUA model di workspace yang punya Humanoid
+    for _,obj in ipairs(WS:GetDescendants()) do
+        if obj:IsA("Humanoid") and obj.Health > 0 and obj.MaxHealth > bestHP then
+            local m = obj.Parent
+            if m and m:IsA("Model") and m ~= Char then
+                -- Skip player characters
+                local isPlayer = false
+                for _,p in ipairs(Players:GetPlayers()) do if p.Character==m then isPlayer=true; break end end
+                if not isPlayer and obj.WalkSpeed > 0 then
+                    local r = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
+                    if r then
+                        bestModel = m; bestRoot = r; bestHP = obj.MaxHealth
                     end
                 end
             end
