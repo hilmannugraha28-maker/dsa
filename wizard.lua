@@ -48,7 +48,7 @@ LP.CharacterAdded:Connect(function(c)
     if S.AutoRespawn then
         local savedPos = S.LastPos
         task.wait(5) -- tunggu game selesai respawn
-        -- Teleport balik (retry 5x supaya pasti nyampe)
+        -- 1. Teleport balik (retry 5x supaya pasti nyampe)
         if savedPos then
             task.spawn(function()
                 for i=1,5 do
@@ -59,7 +59,14 @@ LP.CharacterAdded:Connect(function(c)
                         end
                     end)
                 end
-                notify("Respawn","Kembali ke posisi!")
+                -- 2. Equip senjata (tekan 1, sekali saja)
+                task.wait(0.5)
+                pcall(function()
+                    VIM:SendKeyEvent(true, Enum.KeyCode.One, false, game)
+                    task.wait(0.1)
+                    VIM:SendKeyEvent(false, Enum.KeyCode.One, false, game)
+                end)
+                notify("Respawn","Kembali + equip senjata!")
             end)
         end
     end
