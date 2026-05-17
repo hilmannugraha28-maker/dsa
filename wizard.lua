@@ -538,37 +538,52 @@ invb.MouseButton1Click:Connect(function()
     notify("Scan","Inventory scan selesai! Cek console (F9)")
 end)
 
--- Hook __namecall (capture remote saat sell manual)
-local hookActive = false
-local oldNamecall = nil
-local hookBtn=Instance.new("TextButton"); hookBtn.Size=UDim2.new(1,0,0,28); hookBtn.BackgroundColor3=Color3.fromRGB(80,20,60)
-hookBtn.Text="🔴 Hook Remote (OFF)"; hookBtn.TextColor3=Color3.fromRGB(255,180,220); hookBtn.TextSize=11
-hookBtn.Font=Enum.Font.GothamBold; hookBtn.BorderSizePixel=0; hookBtn.Parent=SF
-Instance.new("UICorner",hookBtn).CornerRadius=UDim.new(0,8)
-hookBtn.MouseButton1Click:Connect(function()
-    hookActive = not hookActive
-    if hookActive then
-        hookBtn.Text = "🟢 Hook Remote (ON) - Sell manual lalu cek F9"
-        hookBtn.BackgroundColor3 = Color3.fromRGB(20,80,30)
-        if not oldNamecall then
-            oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+-- Remote Spy (capture remote saat sell manual)
+local spyActive = false
+local spyConns = {}
+local spyBtn=Instance.new("TextButton"); spyBtn.Size=UDim2.new(1,0,0,28); spyBtn.BackgroundColor3=Color3.fromRGB(80,20,60)
+spyBtn.Text="🔴 Remote Spy (OFF)"; spyBtn.TextColor3=Color3.fromRGB(255,180,220); spyBtn.TextSize=11
+spyBtn.Font=Enum.Font.GothamBold; spyBtn.BorderSizePixel=0; spyBtn.Parent=SF
+Instance.new("UICorner",spyBtn).CornerRadius=UDim.new(0,8)
+spyBtn.MouseButton1Click:Connect(function()
+    spyActive = not spyActive
+    if spyActive then
+        spyBtn.Text = "🟢 Remote Spy (ON) - Sell manual → cek F9"
+        spyBtn.BackgroundColor3 = Color3.fromRGB(20,80,30)
+        -- Hook semua remote pakai __namecall (jika tersedia)
+        local ok = pcall(function()
+            local old = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
                 local method = getnamecallmethod()
-                if (method == "FireServer" or method == "InvokeServer") and (self:IsA("RemoteEvent") or self:IsA("RemoteFunction")) then
-                    local args = {...}
-                    local argStr = ""
-                    for i,a in ipairs(args) do
-                        argStr = argStr .. string.format("[%d]=%s(%s) ", i, tostring(a), typeof(a))
+                if (method == "FireServer" or method == "InvokeServer") then
+                    if self:IsA("RemoteEvent") or self:IsA("RemoteFunction") then
+                        local args = {...}
+                        local argStr = ""
+                        for i,a in ipairs(args) do
+                            argStr = argStr .. string.format("[%d]=%s(%s) ", i, tostring(a), typeof(a))
+                        end
+                        print(string.format("[SPY] %s | %s | Args: %s", self:GetFullName(), method, argStr))
                     end
-                    print(string.format("[HOOK] %s:%s | %s | Args: %s", self.ClassName, method, self:GetFullName(), argStr))
                 end
-                return oldNamecall(self, ...)
+                return old(self, ...)
             end))
+            table.insert(spyConns, old)
+        end)
+        if not ok then
+            -- Fallback: scan semua remote dan print info
+            print("[SPY] hookmetamethod tidak tersedia, scan remote manual...")
+            print("[SPY] === SEMUA REMOTE DI REPLICATED STORAGE ===")
+            for _,v in ipairs(RS:GetDescendants()) do
+                if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
+                    print(string.format("[SPY] [%s] %s", v.ClassName, v:GetFullName()))
+                end
+            end
+            print("[SPY] === END ===")
         end
-        notify("Hook","ON - Sell item manual, lalu cek console F9")
+        notify("Spy","ON - Sell item manual, cek F9")
     else
-        hookBtn.Text = "🔴 Hook Remote (OFF)"
-        hookBtn.BackgroundColor3 = Color3.fromRGB(80,20,60)
-        notify("Hook","OFF")
+        spyBtn.Text = "🔴 Remote Spy (OFF)"
+        spyBtn.BackgroundColor3 = Color3.fromRGB(80,20,60)
+        notify("Spy","OFF")
     end
 end)
 mkSec("  COMBAT")
