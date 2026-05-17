@@ -543,14 +543,35 @@ local function findLombart()
             end
         end
     end
-    -- 3. Print semua NPC untuk debug
-    print("[AutoSell] === SCAN ALL NPC ===")
+    -- 3. Print SEMUA model + prompt untuk debug
+    print("[AutoSell] === SCAN ALL MODELS (non-player) ===")
     for _,v in ipairs(WS:GetDescendants()) do
-        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v ~= Char then
-            local h = v:FindFirstChild("Humanoid")
-            if h.WalkSpeed == 0 then
-                print("[AutoSell]   NPC: " .. v.Name .. " | Path: " .. v:GetFullName())
+        if v:IsA("Model") and v ~= Char then
+            -- Skip player characters
+            local isPlayer = false
+            for _,p in ipairs(Players:GetPlayers()) do if p.Character==v then isPlayer=true; break end end
+            if not isPlayer then
+                local h = v:FindFirstChild("Humanoid")
+                local hasPrompt = v:FindFirstChildWhichIsA("ProximityPrompt", true)
+                local hasClick = v:FindFirstChildWhichIsA("ClickDetector", true)
+                if h or hasPrompt or hasClick then
+                    print(string.format("[AutoSell]   %s | HP:%s SPD:%s Prompt:%s Click:%s | %s",
+                        v.Name,
+                        h and tostring(h.Health) or "none",
+                        h and tostring(h.WalkSpeed) or "none",
+                        hasPrompt and "YES" or "no",
+                        hasClick and "YES" or "no",
+                        v:GetFullName()
+                    ))
+                end
             end
+        end
+    end
+    -- Juga scan ProximityPrompt yang bukan di dalam Model
+    print("[AutoSell] === ALL PROXIMITY PROMPTS ===")
+    for _,v in ipairs(WS:GetDescendants()) do
+        if v:IsA("ProximityPrompt") then
+            print("[AutoSell]   Prompt: " .. v:GetFullName() .. " | Action: " .. tostring(v.ActionText) .. " | Object: " .. tostring(v.ObjectText))
         end
     end
     print("[AutoSell] === END SCAN ===")
@@ -726,6 +747,16 @@ sellOnce.MouseButton1Click:Connect(function()
         notify("Sell","Mulai sell...")
         doSellCycle()
     end)
+end)
+
+-- Tombol Scan Merchant (debug)
+local scanMerch=Instance.new("TextButton"); scanMerch.Size=UDim2.new(1,0,0,28); scanMerch.BackgroundColor3=Color3.fromRGB(50,30,60)
+scanMerch.Text="🔍 Scan Merchant NPC"; scanMerch.TextColor3=Color3.fromRGB(200,180,255); scanMerch.TextSize=11
+scanMerch.Font=Enum.Font.GothamBold; scanMerch.BorderSizePixel=0; scanMerch.Parent=SF
+Instance.new("UICorner",scanMerch).CornerRadius=UDim.new(0,8)
+scanMerch.MouseButton1Click:Connect(function()
+    notify("Scan","Scanning NPC... cek console (F9)")
+    findLombart() -- ini akan print semua NPC ke console
 end)
 
 mkSlider("Sell Interval",10,120,30,function(v) return v.."s" end,function(v) S.SellInterval=v end)
