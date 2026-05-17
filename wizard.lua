@@ -422,11 +422,28 @@ npb.MouseButton1Click:Connect(function()
             local m = obj.Parent
             if m ~= Char then
                 local blocked = not isEnemy(m)
-                print(string.format("  %s [%s] HP:%s/%s SPD:%s PATH:%s",
+                local hasPrompt = m:FindFirstChildWhichIsA("ProximityPrompt", true)
+                local hasClick = m:FindFirstChildWhichIsA("ClickDetector", true)
+                print(string.format("  %s [%s] HP:%s/%s SPD:%s Prompt:%s Click:%s PATH:%s",
                     blocked and "BLOCKED" or "TARGET",
                     m.Name, tostring(obj.Health), tostring(obj.MaxHealth),
-                    tostring(obj.WalkSpeed), m:GetFullName()))
+                    tostring(obj.WalkSpeed),
+                    hasPrompt and "YES" or "no",
+                    hasClick and "YES" or "no",
+                    m:GetFullName()))
             end
+        end
+    end
+    print("=== ALL PROXIMITY PROMPTS ===")
+    for _,v in ipairs(WS:GetDescendants()) do
+        if v:IsA("ProximityPrompt") then
+            print("  Prompt: " .. v:GetFullName() .. " | Action: " .. tostring(v.ActionText) .. " | Object: " .. tostring(v.ObjectText))
+        end
+    end
+    print("=== ALL CLICK DETECTORS ===")
+    for _,v in ipairs(WS:GetDescendants()) do
+        if v:IsA("ClickDetector") then
+            print("  Click: " .. v:GetFullName())
         end
     end
     print("=== END ===")
