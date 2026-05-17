@@ -43,16 +43,7 @@ LP.CharacterAdded:Connect(function(c)
     if S.AutoRespawn then
         local savedPos = S.LastPos
         task.wait(5) -- tunggu game selesai respawn
-        -- 1. Equip senjata (tekan tombol 1, 1x saja)
-        task.spawn(function()
-            task.wait(0.5)
-            pcall(function()
-                VIM:SendKeyEvent(true, Enum.KeyCode.One, false, game)
-                task.wait(0.1)
-                VIM:SendKeyEvent(false, Enum.KeyCode.One, false, game)
-            end)
-        end)
-        -- 2. Teleport balik (retry 5x supaya pasti nyampe)
+        -- Teleport balik (retry 5x supaya pasti nyampe)
         if savedPos then
             task.spawn(function()
                 for i=1,5 do
@@ -63,7 +54,7 @@ LP.CharacterAdded:Connect(function(c)
                         end
                     end)
                 end
-                notify("Respawn","Kembali + equip senjata!")
+                notify("Respawn","Kembali ke posisi!")
             end)
         end
     end
@@ -453,7 +444,7 @@ mkToggle("Auto Skill R+E","Otomatis tekan R dan E saat serang",function(on)
     S.AutoSkill=on; notify("Auto Skill",on and "ON" or "OFF")
 end)
 
-mkToggle("Auto Respawn","Balik + equip senjata saat mati",function(on)
+mkToggle("Auto Respawn","Balik ke posisi saat mati",function(on)
     S.AutoRespawn=on; notify("Auto Respawn",on and "ON" or "OFF")
 end)
 
@@ -468,6 +459,27 @@ mkSlider("Farm Delay",0.1,2,0.3,function(v) return v.."s" end,function(v) S.Farm
 
 -- TELEPORT PLAYER
 mkSec("  TELEPORT")
+
+-- TP to Base button
+local tpBase=Instance.new("TextButton"); tpBase.Size=UDim2.new(1,0,0,32); tpBase.BackgroundColor3=Color3.fromRGB(20,60,40)
+tpBase.Text="⛺ Teleport to Base"; tpBase.TextColor3=Color3.fromRGB(140,255,180); tpBase.TextSize=12
+tpBase.Font=Enum.Font.GothamBold; tpBase.BorderSizePixel=0; tpBase.Parent=SF
+Instance.new("UICorner",tpBase).CornerRadius=UDim.new(0,8)
+Instance.new("UIStroke",tpBase).Color=Color3.fromRGB(40,120,70)
+tpBase.MouseButton1Click:Connect(function()
+    local spawn = nil
+    -- Cari SpawnLocation di workspace
+    for _,v in ipairs(WS:GetDescendants()) do
+        if v:IsA("SpawnLocation") then spawn=v; break end
+    end
+    if spawn then
+        pcall(function() Root.CFrame=CFrame.new(spawn.Position+Vector3.new(0,5,0)) end)
+        notify("TP","Teleport ke Base!")
+    else
+        notify("TP","SpawnLocation tidak ditemukan!")
+    end
+end)
+
 local PLF=Instance.new("Frame"); PLF.Size=UDim2.new(1,0,0,0); PLF.BackgroundTransparency=1
 PLF.AutomaticSize=Enum.AutomaticSize.Y; PLF.Parent=SF
 Instance.new("UIListLayout",PLF).Padding=UDim.new(0,4)
