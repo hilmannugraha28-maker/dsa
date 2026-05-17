@@ -506,16 +506,54 @@ local function clickButton(btn)
 end
 
 local function findLombart()
-    -- Cari NPC Lombart di workspace
+    -- Nama NPC merchant (English + Chinese)
+    local MERCHANT_NAMES = {
+        "lombart","merchant","general merchant","seller","shop","vendor","trader",
+        "隆巴特","商人","店主","杂货","杂货商","出售","卖","交易","贸易商",
+    }
+    -- 1. Cari berdasarkan nama
     for _,v in ipairs(WS:GetDescendants()) do
         if v:IsA("Model") then
             local n = v.Name:lower()
-            if n:find("lombart",1,true) or n:find("merchant",1,true) or n:find("general merchant",1,true) then
-                local r = v:FindFirstChild("HumanoidRootPart") or v:FindFirstChild("Torso") or v:FindFirstChild("Head") or v.PrimaryPart
-                if r then return v, r end
+            for _,keyword in ipairs(MERCHANT_NAMES) do
+                if n:find(keyword,1,true) then
+                    local r = v:FindFirstChild("HumanoidRootPart") or v:FindFirstChild("Torso") or v:FindFirstChild("Head") or v.PrimaryPart
+                    if r then
+                        print("[AutoSell] Found merchant: " .. v.Name .. " (" .. v:GetFullName() .. ")")
+                        return v, r
+                    end
+                end
             end
         end
     end
+    -- 2. Fallback: cari model NPC yang punya ProximityPrompt (bukan musuh)
+    for _,v in ipairs(WS:GetDescendants()) do
+        if v:IsA("ProximityPrompt") then
+            local model = v.Parent
+            while model and not model:IsA("Model") do model = model.Parent end
+            if model and model:IsA("Model") and model ~= Char then
+                local h = model:FindFirstChild("Humanoid")
+                if h and h.WalkSpeed == 0 then -- NPC statis = bukan musuh
+                    local r = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Torso") or model:FindFirstChild("Head") or model.PrimaryPart
+                    if r then
+                        print("[AutoSell] Found NPC with ProximityPrompt: " .. model.Name .. " (" .. model:GetFullName() .. ")")
+                        return model, r
+                    end
+                end
+            end
+        end
+    end
+    -- 3. Print semua NPC untuk debug
+    print("[AutoSell] === SCAN ALL NPC ===")
+    for _,v in ipairs(WS:GetDescendants()) do
+        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v ~= Char then
+            local h = v:FindFirstChild("Humanoid")
+            if h.WalkSpeed == 0 then
+                print("[AutoSell]   NPC: " .. v.Name .. " | Path: " .. v:GetFullName())
+            end
+        end
+    end
+    print("[AutoSell] === END SCAN ===")
     return nil, nil
 end
 
