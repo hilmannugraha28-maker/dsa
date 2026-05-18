@@ -120,8 +120,7 @@ local function isEnemy(model)
     -- Health check
     local h = model:FindFirstChild("Humanoid")
     if not h or h.Health<=0 or h.MaxHealth<=0 or h.MaxHealth==math.huge then return false end
-    -- Skip NPC statis (WalkSpeed=0 = tidak jalan = bukan musuh)
-    if h.WalkSpeed==0 then return false end
+    -- NOTE: WalkSpeed check dihapus karena beberapa mob punya WalkSpeed=0 tapi tetap musuh
     return true
 end
 
@@ -135,8 +134,8 @@ local function scanMobs()
                 -- Skip player characters
                 local isPlayer = false
                 for _,p in ipairs(Players:GetPlayers()) do if p.Character==m then isPlayer=true; break end end
-                -- Skip NPC statis (WalkSpeed=0)
-                if not isPlayer and obj.WalkSpeed > 0 then
+                -- NOTE: WalkSpeed check dihapus — beberapa mob WalkSpeed=0 tapi tetap musuh
+                if not isPlayer then
                     -- Blacklist check
                     local n = m.Name:lower()
                     local blocked = false
@@ -145,11 +144,17 @@ local function scanMobs()
                         -- Filter HP: hanya target mob dalam range
                         local hpMatch = (obj.MaxHealth >= S.TargetHPMin and obj.MaxHealth <= S.TargetHPMax)
                         if hpMatch then
-                        local r = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
-                        if r then
-                            table.insert(mobs,{model=m,root=r,hp=obj.MaxHealth,dist=(Root.Position-r.Position).Magnitude})
-                            seen[m]=true
-                        end
+                            local r = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
+                            if r then
+                                table.insert(mobs,{model=m,root=r,hp=obj.MaxHealth,dist=(Root.Position-r.Position).Magnitude})
+                                seen[m]=true
+                            end
+                        else
+                            -- Debug: print mob yang diskip karena HP out of range
+                            if not seen[m] then
+                                print(string.format("[Skip] %s MaxHP=%s (range %s-%s) WalkSpeed=%s", m.Name, tostring(obj.MaxHealth), tostring(S.TargetHPMin), tostring(S.TargetHPMax), tostring(obj.WalkSpeed)))
+                                seen[m]=true
+                            end
                         end
                     end
                 end
@@ -630,6 +635,8 @@ mkSlider("Orbit Radius",2,12,4,function(v) return v.."st" end,function(v) S.Orbi
 mkSlider("Orbit Speed",30,360,120,function(v) return v.."/s" end,function(v) S.OrbitSpeed=v end)
 mkSlider("Attack Rate",0.05,0.5,0.1,function(v) return v.."s" end,function(v) S.AttackRate=v end)
 mkSlider("Farm Delay",0.1,2,0.3,function(v) return v.."s" end,function(v) S.FarmDelay=v end)
+mkSlider("HP Min",0,5000,120,function(v) return tostring(math.floor(v)) end,function(v) S.TargetHPMin=v end)
+mkSlider("HP Max",0,100000,1000,function(v) return tostring(math.floor(v)) end,function(v) S.TargetHPMax=v end)
 
 -- Speed Hack (CFrame-based, bypass server WalkSpeed reset)
 S.SpeedHack = false
