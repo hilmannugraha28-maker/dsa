@@ -665,6 +665,253 @@ mkSlider("Speed Boost",1,10,2,function(v) return "x"..v end,function(v)
     S.SpeedValue=v
 end)
 
+-- ========================
+-- FPS BOOSTER / LOW FPS MODE
+-- ========================
+S.FPSBoost = false
+S.TargetFPS = 30
+local fpsBoostBackup = {} -- simpan state asli untuk restore
+local removedInstances = {} -- track instance yg dihapus
+
+local function applyFPSBoost()
+    local Lighting = game:GetService("Lighting")
+    
+    -- 1. Simpan backup settings
+    fpsBoostBackup.GlobalShadows = Lighting.GlobalShadows
+    fpsBoostBackup.FogEnd = Lighting.FogEnd
+    fpsBoostBackup.FogStart = Lighting.FogStart
+    fpsBoostBackup.Brightness = Lighting.Brightness
+    fpsBoostBackup.Technology = Lighting.Technology
+    fpsBoostBackup.QualityLevel = settings().Rendering.QualityLevel
+    
+    -- 2. Turunkan kualitas rendering
+    pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+    
+    -- 3. Matikan shadows & kurangi efek lighting
+    pcall(function()
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 1500
+        Lighting.FogStart = 500
+        Lighting.Technology = Enum.Technology.Compatibility
+    end)
+    
+    -- 4. Hapus PostEffect (Bloom, Blur, ColorCorrection, dll)
+    pcall(function()
+        for _,v in ipairs(Lighting:GetDescendants()) do
+            if v:IsA("PostEffect") then
+                table.insert(removedInstances, {instance=v, parent=v.Parent, enabled=true})
+                pcall(function() v.Enabled = false end)
+            end
+        end
+    end)
+    
+    -- 5. Hapus/Disable Particles, Trails, Beams, Smoke, Fire, Sparkles di Workspace
+    pcall(function()
+        for _,v in ipairs(WS:GetDescendants()) do
+            local skip = false
+            -- Jangan hapus dari karakter sendiri
+            if Char and v:IsDescendantOf(Char) then skip = true end
+            if not skip then
+                if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") 
+                    or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+                    table.insert(removedInstances, {instance=v, parent=v.Parent, enabled=v.Enabled})
+                    pcall(function() v.Enabled = false end)
+                elseif v:IsA("Decal") or v:IsA("Texture") then
+                    -- Kurangi transparency decals (bukan hapus total)
+                    table.insert(removedInstances, {instance=v, parent=v.Parent, transparency=v.Transparency})
+                    pcall(function() v.Transparency = 1 end)
+                elseif v:IsA("MeshPart") or v:IsA("UnionOperation") then
+                    -- Render fidelity = Performance
+                    pcall(function()
+                        if v:FindFirstChild("RenderFidelity") or v.RenderFidelity then
+                            table.insert(removedInstances, {instance=v, renderFidelity=v.RenderFidelity})
+                            v.RenderFidelity = Enum.RenderFidelity.Performance
+                        end
+                    end)
+                end
+            end
+        end
+    end)
+    
+    -- 6. Terrain detail
+    pcall(function()
+        local terrain = WS:FindFirstChildOfClass("Terrain")
+        if terrain then
+            fpsBoostBackup.TerrainDecoration = terrain.Decoration
+            fpsBoostBackup.TerrainWaterReflectance = terrain.WaterReflectance
+            fpsBoostBackup.TerrainWaterTransparency = terrain.WaterTransparency
+            fpsBoostBackup.TerrainWaterWaveSize = terrain.WaterWaveSize
+            terrain.Decoration = false
+            terrain.WaterReflectance = 0
+            terrain.WaterTransparency = 0
+            terrain.WaterWaveSize = 0
+        end
+    end)
+    
+    -- 7. Set FPS Cap (menggunakan setfpscap jika executor support)
+    pcall(function()
+        if setfpscap then
+            setfpscap(S.TargetFPS)
+        end
+    end)
+    
+    -- 8. Disable material pada parts (ganti jadi SmoothPlastic)
+    pcall(function()
+        for _,v in ipairs(WS:GetDescendants()) do
+            if v:IsA("BasePart") and not (Char and v:IsDescendantOf(Char)) then
+                if v.Material ~= Enum.Material.SmoothPlastic then
+                    table.insert(removedInstances, {instance=v, material=v.Material})
+                    v.Material = Enum.Material.SmoothPlastic
+                end
+            end
+        end
+    end)
+    
+    notify("FPS Boost","ON — Kualitas diturunkan, target "..S.TargetFPS.." FPS")
+    print("[WA] FPS Boost ON | Quality: Level01 | Shadows: OFF | Particles: OFF | FPS Cap: "..S.TargetFPS)
+end
+
+local function removeFPSBoost()
+    local Lighting = game:GetService("Lighting")
+    
+    -- Restore lighting
+    pcall(function()
+        if fpsBoostBackup.GlobalShadows ~= nil then Lighting.GlobalShadows = fpsBoostBackup.GlobalShadows end
+        if fpsBoostBackup.FogEnd then Lighting.FogEnd = fpsBoostBackup.FogEnd end
+        if fpsBoostBackup.FogStart then Lighting.FogStart = fpsBoostBackup.FogStart end
+        if fpsBoostBackup.Technology then Lighting.Technology = fpsBoostBackup.Technology end
+    end)
+    
+    -- Restore quality
+    pcall(function()
+        if fpsBoostBackup.QualityLevel then
+            settings().Rendering.QualityLevel = fpsBoostBackup.QualityLevel
+        end
+    end)
+    
+    -- Restore terrain
+    pcall(function()
+        local terrain = WS:FindFirstChildOfClass("Terrain")
+        if terrain then
+            if fpsBoostBackup.TerrainDecoration ~= nil then terrain.Decoration = fpsBoostBackup.TerrainDecoration end
+            if fpsBoostBackup.TerrainWaterReflectance then terrain.WaterReflectance = fpsBoostBackup.TerrainWaterReflectance end
+            if fpsBoostBackup.TerrainWaterTransparency then terrain.WaterTransparency = fpsBoostBackup.TerrainWaterTransparency end
+            if fpsBoostBackup.TerrainWaterWaveSize then terrain.WaterWaveSize = fpsBoostBackup.TerrainWaterWaveSize end
+        end
+    end)
+    
+    -- Restore semua instance yg di-modify
+    for _,data in ipairs(removedInstances) do
+        pcall(function()
+            if data.instance and data.instance.Parent then
+                if data.enabled ~= nil and data.instance:IsA("ParticleEmitter") or data.instance:IsA("Trail") or data.instance:IsA("Beam") 
+                    or data.instance:IsA("Smoke") or data.instance:IsA("Fire") or data.instance:IsA("Sparkles") or data.instance:IsA("PostEffect") then
+                    data.instance.Enabled = data.enabled
+                end
+                if data.transparency then
+                    data.instance.Transparency = data.transparency
+                end
+                if data.material then
+                    data.instance.Material = data.material
+                end
+                if data.renderFidelity then
+                    data.instance.RenderFidelity = data.renderFidelity
+                end
+            end
+        end)
+    end
+    removedInstances = {}
+    
+    -- Restore FPS cap
+    pcall(function()
+        if setfpscap then setfpscap(9999) end -- unlimited
+    end)
+    
+    fpsBoostBackup = {}
+    notify("FPS Boost","OFF — Kualitas dikembalikan")
+    print("[WA] FPS Boost OFF | Restored defaults")
+end
+
+-- Continuous cleanup: hapus particle/efek baru yang spawn setelah boost aktif
+local fpsCleanupConn = nil
+
+local function startFPSCleanup()
+    if fpsCleanupConn then fpsCleanupConn:Disconnect() end
+    fpsCleanupConn = WS.DescendantAdded:Connect(function(v)
+        if not S.FPSBoost then return end
+        task.wait() -- frame delay biar property ke-set
+        pcall(function()
+            if Char and v:IsDescendantOf(Char) then return end
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam")
+                or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+                v.Enabled = false
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 1
+            elseif v:IsA("BasePart") then
+                v.Material = Enum.Material.SmoothPlastic
+            end
+        end)
+    end)
+end
+
+mkSec("  PERFORMANCE")
+
+mkToggle("FPS Boost","Turunkan grafis, hapus efek visual",function(on)
+    S.FPSBoost=on
+    if on then
+        applyFPSBoost()
+        startFPSCleanup()
+    else
+        removeFPSBoost()
+        if fpsCleanupConn then fpsCleanupConn:Disconnect(); fpsCleanupConn=nil end
+    end
+end)
+
+mkSlider("Target FPS",10,60,30,function(v) return math.floor(v).." FPS" end,function(v)
+    S.TargetFPS=math.floor(v)
+    if S.FPSBoost then
+        pcall(function()
+            if setfpscap then setfpscap(S.TargetFPS) end
+        end)
+    end
+end)
+
+-- Tombol manual: Remove All Particles (one-shot)
+local rpb=Instance.new("TextButton"); rpb.Size=UDim2.new(1,0,0,28); rpb.BackgroundColor3=Color3.fromRGB(50,20,20)
+rpb.Text="🧹 Remove All Particles"; rpb.TextColor3=Color3.fromRGB(255,180,180); rpb.TextSize=11
+rpb.Font=Enum.Font.GothamBold; rpb.BorderSizePixel=0; rpb.Parent=SF
+Instance.new("UICorner",rpb).CornerRadius=UDim.new(0,8)
+rpb.MouseButton1Click:Connect(function()
+    local count = 0
+    for _,v in ipairs(WS:GetDescendants()) do
+        pcall(function()
+            if Char and v:IsDescendantOf(Char) then return end
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam")
+                or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+                v.Enabled = false; count = count + 1
+            end
+        end)
+    end
+    notify("Cleanup", count.." efek visual dimatikan!")
+end)
+
+-- Tombol manual: Remove All Textures/Decals
+local rtb=Instance.new("TextButton"); rtb.Size=UDim2.new(1,0,0,28); rtb.BackgroundColor3=Color3.fromRGB(50,30,10)
+rtb.Text="🖼 Remove All Decals/Textures"; rtb.TextColor3=Color3.fromRGB(255,210,160); rtb.TextSize=11
+rtb.Font=Enum.Font.GothamBold; rtb.BorderSizePixel=0; rtb.Parent=SF
+Instance.new("UICorner",rtb).CornerRadius=UDim.new(0,8)
+rtb.MouseButton1Click:Connect(function()
+    local count = 0
+    for _,v in ipairs(WS:GetDescendants()) do
+        pcall(function()
+            if v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 1; count = count + 1
+            end
+        end)
+    end
+    notify("Cleanup", count.." decal/texture dihapus!")
+end)
+
 -- TELEPORT PLAYER
 mkSec("  TELEPORT")
 
